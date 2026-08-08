@@ -1752,7 +1752,7 @@ erDiagram
     zoomLabel.textContent = Math.round(scale * 100) + '%';
   }
 
-  function clampScale(s) { return Math.min(Math.max(s, 0.08), 10); }
+  function clampScale(s) { return Math.min(Math.max(s, 0.08), 1000); }
 
   function zoomAt(cx, cy, factor) {
     var next = clampScale(scale * factor);
