@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Brite Entity Schema &amp; RLN Gap Analysis</title>
-<meta name="description" content="How Dealers, Customers, Leads, Events, Quotes, Orders &amp; Work Orders connect in Brite, with proposed RLN schema changes marked directly in every diagram.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A7%A9%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
 <body>
+
 <style>
   :root {
     --paper: #F3F6FB;
@@ -205,8 +205,16 @@
   .lightbox-stage .diagram-edge { cursor: pointer; transition: stroke 0.1s, filter 0.1s; }
   .lightbox-stage .diagram-edge:hover { stroke: #7C93F5 !important; filter: drop-shadow(0 0 2px rgba(124,147,245,0.65)); }
   .lightbox-stage .edge-highlighted { stroke: #3452D9 !important; stroke-width: 3px !important; filter: drop-shadow(0 0 3px rgba(52,82,217,0.75)); }
-  .lightbox-stage .new-item-text { fill: #A8241A !important; font-weight: 700 !important; }
-  .lightbox-stage .new-item-rect { fill: #FBE7E1 !important; stroke: #C1432A !important; }
+  .lightbox-stage g.rln-entity .outer-path path,
+  .lightbox-stage g.rln-entity .row-rect-odd path,
+  .lightbox-stage g.rln-entity .row-rect-even path { fill: #E3ECFF !important; stroke: #2F5FD9 !important; }
+  .lightbox-stage g.new-item-entity .outer-path path,
+  .lightbox-stage g.new-item-entity .row-rect-odd path,
+  .lightbox-stage g.new-item-entity .row-rect-even path { fill: #FBE7E1 !important; stroke: #C1432A !important; }
+  .lightbox-legend { display: flex; gap: 16px; align-items: center; margin-left: 12px; font-family: var(--font-body); font-size: 0.78rem; color: #55607A; }
+  .lightbox-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .lightbox-legend .swatch--rln { background: #E3ECFF; border: 1px solid #2F5FD9; }
+  .lightbox-legend .swatch--new { background: #FBE7E1; border: 1px solid #C1432A; }
 
   .callout {
     border-left: 3px solid var(--accent);
@@ -479,6 +487,27 @@ erDiagram
     partner_dealer_status {
         uuid dealer_id PK
     }
+    partner_user_skills {
+        uuid user_id FK
+        uuid dealer_id FK
+        text skill_code "RLN itself is a skill code, plus product skills"
+    }
+    partner_user_location {
+        uuid user_id PK
+        double latitude
+        double longitude
+        int service_radius_miles "default 35"
+    }
+    partner_user_assignment_config {
+        uuid user_id PK
+        bool active "false = paused, excluded from resolver"
+        int assignment_priority "1 = primary"
+    }
+    partner_store_user_links {
+        uuid store_id FK "MAIN_ACCOUNT dealer (partner store)"
+        uuid user_id FK "the house-account designer"
+        uuid dealer_id FK "house account the user sits under"
+    }
     pending_ownership_transfer {
         uuid id PK
         text predecessor_account
@@ -501,10 +530,15 @@ erDiagram
     dealers ||--|| partner_dealer_store_config : "which dealer owns this retail-partner store number"
     dealers ||--o{ partner_store_dealer_links : "which dealers are teamed to which stores"
     dealers ||--|| partner_dealer_status : "is this dealer opted in to RLN"
+    dealer_users ||--o{ partner_user_skills : "RLN product/brand skills this user holds"
+    dealer_users ||--|| partner_user_location : "lat/long + service radius"
+    dealer_users ||--|| partner_user_assignment_config : "active flag + assignment priority"
+    dealers ||--o{ partner_store_user_links : "store_id (partner store) and dealer_id (house account)"
+    dealer_users ||--o{ partner_store_user_links : "user_id (designer teaming)"
     dealers ||..o{ dealer_commission_ledger : "🆕 NEW — no payable commission record exists today"
 </pre>
       </div>
-      <div class="diagram-caption">also in this domain: dealer_location_hours, vendor_configuration_fields, dealer_vendor_configuration_fields/exclusions, erp_account_types, dealer_exclusivity, dealer_sales_metrics, dealer_rankings, dealer_segments, account_data_health_snapshots, dealer_owner_provision_jobs, login_history, store_audit_pending, partner_user_skills/location/assignment_config, partner_store_user_links, transfer_step, ownership_transfer_journal</div>
+      <div class="diagram-caption">also in this domain: dealer_location_hours, vendor_configuration_fields, dealer_vendor_configuration_fields/exclusions, erp_account_types, dealer_exclusivity, dealer_sales_metrics, dealer_rankings, dealer_segments, account_data_health_snapshots, dealer_owner_provision_jobs, login_history, store_audit_pending, transfer_step, ownership_transfer_journal</div>
 
       <div class="callout full">
         <p><strong>RLN impact on Dealers:</strong> three new tables already exist and are live — one resolves a retail partner's store number (e.g. a specific Home Depot location) to the Brite dealer who services it, one records which dealers are teamed up to work that store's leads, and one is a simple on/off switch for whether a dealer participates in RLN at all. This is the foundation everything else in RLN routing sits on top of, and it already shipped (early July 2026) — it is <em>not</em> something still being built, even though it's easy to assume otherwise since it's so new. For your migration mapping: any "which dealer services this partner store" question should resolve through these three tables, not by inferring it from an address or account number.</p>
@@ -628,6 +662,20 @@ erDiagram
     partner_config { text partner PK }
     integration_log { uuid id PK
         text partner }
+    partner_idempotency_keys {
+        text partner PK
+        text idempotency_key PK
+        uuid lead_id FK
+    }
+    partner_channel_profile {
+        text channel_code PK "🆕 NEW TABLE — proposed, RDIS-410"
+        text country PK "🆕 NEW — composite key with channel_code"
+        text display_name "🆕 NEW"
+        text phone "🆕 NEW"
+        text email "🆕 NEW"
+        text logo_url "🆕 NEW"
+        text website "🆕 NEW — no Salesforce source, populated by hand"
+    }
     dealer_quote_snapshots { text lead_id PK
         text quote_id }
     order_status_snapshots { text order_id PK
@@ -641,9 +689,11 @@ erDiagram
     leads ||..o{ order_status_snapshots : "synced copy of this lead's order(s), drives lead status"
     leads }o..|| campaigns : "which marketing campaign, if any"
     leads }o..o{ partner_channel_mapping : "look up SAP pricing context for this partner"
+    partner_idempotency_keys }o--o| leads : "lead_id, ingress dedup"
+    partner_channel_profile ||..o{ partner_channel_mapping : "shared channel_code — 🆕 NEW join, not yet wired"
 </pre>
       </div>
-      <div class="diagram-caption">also in this domain: lead_labels(+associations), lead_user_assignments, personalized_labels, archive_reasons, rejection_reasons, lead_rejections, lead_source_mappings, lead_interested_in_mappings, lead_event_assigned_users, files/lead_event_files/lead_files, lead_chat(+attachments+downloads), project_costs, lead_cash_balance, installation_metrics_details, lead_windows(+preferences), dc_redirects, dc_continue_without_link_responses, search_logs, lead_resubmission_audit, partner_idempotency_keys. <strong>Correction from an earlier pass:</strong> this section previously proposed a new <span class="mono">lead_status_history</span> table — wrong, a real activity log (<span class="mono">leads_audits</span>, in the shared <span class="mono">services/audit</span>) already tracks stage/substage transitions, event names and who/when. The likely remaining gap is narrower: specific new RLN event types may need to be explicitly logged by application code, not new columns.</div>
+      <div class="diagram-caption">also in this domain: lead_labels(+associations), lead_user_assignments, personalized_labels, archive_reasons, rejection_reasons, lead_rejections, lead_source_mappings, lead_interested_in_mappings, lead_event_assigned_users, files/lead_event_files/lead_files, lead_chat(+attachments+downloads), project_costs, lead_cash_balance, installation_metrics_details, lead_windows(+preferences), dc_redirects, dc_continue_without_link_responses, search_logs, lead_resubmission_audit. <strong>Correction from an earlier pass:</strong> this section previously proposed a new <span class="mono">lead_status_history</span> table — wrong, a real activity log (<span class="mono">leads_audits</span>, in the shared <span class="mono">services/audit</span>) already tracks stage/substage transitions, event names and who/when. The likely remaining gap is narrower: specific new RLN event types may need to be explicitly logged by application code, not new columns.</div>
 
       <div class="callout full">
         <p><strong>RLN impact on Leads: the data is captured, but nothing is acting on it yet.</strong> Since early July 2026, every partner-sourced lead lands with three new fields set permanently at intake and never changed afterward: which retail partner sent it (Home Depot, JCPenney, DecorView, DirectBuy, BJ's, Lowe's, or Costco Canada), the raw store number from that partner's system, and the Brite dealer that store number resolves to. A companion reference table also went in a couple days later, mapping each partner to the SAP pricing details a quote from that partner needs to use. What's still missing is the actual matching logic that's supposed to read all of this and decide "so which dealer and which designer should actually work this lead" — that decision-making piece doesn't exist yet. The data to make the decision correctly is already there and ready to use.</p>
@@ -977,6 +1027,27 @@ erDiagram
     partner_dealer_status {
         uuid dealer_id PK
     }
+    partner_user_skills {
+        uuid user_id FK
+        uuid dealer_id FK
+        text skill_code "RLN itself is a skill code, plus product skills"
+    }
+    partner_user_location {
+        uuid user_id PK
+        double latitude
+        double longitude
+        int service_radius_miles "default 35"
+    }
+    partner_user_assignment_config {
+        uuid user_id PK
+        bool active "false = paused, excluded from resolver"
+        int assignment_priority "1 = primary"
+    }
+    partner_store_user_links {
+        uuid store_id FK "MAIN_ACCOUNT dealer (partner store)"
+        uuid user_id FK "the house-account designer"
+        uuid dealer_id FK "house account the user sits under"
+    }
     pending_ownership_transfer {
         uuid id PK
         text predecessor_account
@@ -993,6 +1064,11 @@ erDiagram
     dealers ||--|| partner_dealer_store_config : "which dealer owns this retail-partner store number"
     dealers ||--o{ partner_store_dealer_links : "which dealers are teamed to which stores"
     dealers ||--|| partner_dealer_status : "is this dealer opted in to RLN"
+    dealer_users ||--o{ partner_user_skills : "RLN product/brand skills this user holds"
+    dealer_users ||--|| partner_user_location : "lat/long + service radius"
+    dealer_users ||--|| partner_user_assignment_config : "active flag + assignment priority"
+    dealers ||--o{ partner_store_user_links : "store_id (partner store) and dealer_id (house account)"
+    dealer_users ||--o{ partner_store_user_links : "user_id (designer teaming)"
 
     dealer_commission_ledger {
         uuid order_id FK "🆕 NEW TABLE — proposed for RDIS-193/324/372, doesn't exist yet"
@@ -1095,6 +1171,20 @@ erDiagram
     partner_config { text partner PK }
     integration_log { uuid id PK
         text partner }
+    partner_idempotency_keys {
+        text partner PK
+        text idempotency_key PK
+        uuid lead_id FK
+    }
+    partner_channel_profile {
+        text channel_code PK "🆕 NEW TABLE — proposed, RDIS-410"
+        text country PK "🆕 NEW — composite key with channel_code"
+        text display_name "🆕 NEW"
+        text phone "🆕 NEW"
+        text email "🆕 NEW"
+        text logo_url "🆕 NEW"
+        text website "🆕 NEW — no Salesforce source, populated by hand"
+    }
     dealer_quote_snapshots { text lead_id PK
         text quote_id }
     order_status_snapshots { text order_id PK
@@ -1108,6 +1198,9 @@ erDiagram
     leads ||..o{ order_status_snapshots : "synced copy of this lead's order(s), drives lead status"
     leads }o..|| campaigns : "which marketing campaign, if any"
     leads }o..o{ partner_channel_mapping : "look up SAP pricing context for this partner"
+    partner_idempotency_keys }o--o| leads : "lead_id, ingress dedup"
+    partner_channel_profile ||..o{ partner_channel_mapping : "shared channel_code — 🆕 NEW join, not yet wired"
+    partner_dealer_store_config ||..o{ partner_channel_profile : "channel_code+country — 🆕 NEW FK, not yet wired (cross-service, Dealers to Leads)"
 
     appointments {
         uuid id PK
@@ -1562,8 +1655,9 @@ erDiagram
     <span class="lightbox-zoom-label" id="lightboxZoomLabel">100%</span>
     <button type="button" data-action="zoom-in" aria-label="Zoom in">&plus;</button>
     <button type="button" data-action="reset">Reset</button>
+    <span class="lightbox-legend"><span class="swatch swatch--rln"></span>RLN table<span class="swatch swatch--new" style="margin-left:14px"></span>Proposed / not built yet</span>
     <span class="spacer"></span>
-    <span class="lightbox-hint">scroll/pinch to zoom &middot; drag to pan &middot; click a line to trace it &middot; double-click to re-center</span>
+    <span class="lightbox-hint">scroll/pinch to zoom &middot; drag to pan &middot; click a line to trace it (click again to clear) &middot; double-click to re-center</span>
     <span class="spacer"></span>
     <button type="button" data-action="close" aria-label="Close">&times;</button>
   </div>
@@ -1615,21 +1709,41 @@ erDiagram
     });
   }
 
+  // Mermaid (this CDN build) renders erDiagram labels as HTML inside
+  // <foreignObject>, not as native SVG <text>, and each entity is a single
+  // flat <g id=".. .-entity-<Name>-<n>"> containing <path>-based row/border
+  // fills (not <rect>) as siblings of the label groups, not their parents.
+  // Both helpers below key off that real structure instead of guessing.
+  function entityNodes(svg) {
+    return Array.prototype.slice.call(svg.querySelectorAll('g[id*="-entity-"]'));
+  }
+
+  function entityNameOf(g) {
+    var m = /-entity-(.+)-\d+$/.exec(g.id || '');
+    return m ? m[1] : null;
+  }
+
+  var RLN_ENTITY_NAMES = [
+    'partner_dealer_store_config', 'partner_store_dealer_links', 'partner_dealer_status',
+    'partner_user_skills', 'partner_user_location', 'partner_user_assignment_config',
+    'partner_store_user_links', 'partner_channel_mapping', 'partner_config',
+    'integration_log', 'partner_idempotency_keys', 'partner_channel_profile'
+  ];
+
+  function highlightRlnTables(svg) {
+    entityNodes(svg).forEach(function (g) {
+      if (RLN_ENTITY_NAMES.indexOf(entityNameOf(g)) !== -1) g.classList.add('rln-entity');
+    });
+  }
+
   function highlightNewItems(svg) {
-    // Best-effort visual emphasis for anything marked with the NEW marker text.
-    // Uses only text-content matching (never guesses mermaid's internal class
-    // names), so a mismatch just means no bonus color, never a broken render.
-    var texts = Array.prototype.slice.call(svg.querySelectorAll('text'));
-    texts.forEach(function (t) {
-      if (!t.textContent || t.textContent.indexOf('NEW') === -1) return;
-      t.classList.add('new-item-text');
-      var row = t.closest('g');
-      if (row) {
-        row.classList.add('new-item-row');
-        Array.prototype.slice.call(row.querySelectorAll('rect')).forEach(function (r) {
-          r.classList.add('new-item-rect');
-        });
-      }
+    // An entity counts as "new" if any of its rendered attribute text
+    // contains the NEW marker used throughout this page's copy.
+    entityNodes(svg).forEach(function (g) {
+      var hasNew = Array.prototype.slice.call(g.querySelectorAll('span, p')).some(function (el) {
+        return el.textContent && el.textContent.indexOf('NEW') !== -1;
+      });
+      if (hasNew) g.classList.add('new-item-entity');
     });
   }
 
@@ -1669,6 +1783,7 @@ erDiagram
     stage.appendChild(clone);
     wireEdgeHighlighting(clone);
     highlightNewItems(clone);
+    highlightRlnTables(clone);
     lightbox.hidden = false;
     document.body.style.overflow = 'hidden';
     requestAnimationFrame(fitToViewport);
