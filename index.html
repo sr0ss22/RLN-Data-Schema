@@ -205,6 +205,7 @@
   .lightbox-stage .diagram-edge { cursor: pointer; transition: stroke 0.1s, filter 0.1s; }
   .lightbox-stage .diagram-edge:hover { stroke: #7C93F5 !important; filter: drop-shadow(0 0 2px rgba(124,147,245,0.65)); }
   .lightbox-stage .edge-highlighted { stroke: #3452D9 !important; stroke-width: 3px !important; filter: drop-shadow(0 0 3px rgba(52,82,217,0.75)); }
+  .lightbox-stage g.entity-selected .outer-path path { stroke: #3452D9 !important; stroke-width: 3px !important; filter: drop-shadow(0 0 4px rgba(52,82,217,0.6)); }
   .lightbox-stage g.rln-entity .outer-path path,
   .lightbox-stage g.rln-entity .row-rect-odd path,
   .lightbox-stage g.rln-entity .row-rect-even path { fill: #E3ECFF !important; stroke: #2F5FD9 !important; }
@@ -1657,7 +1658,7 @@ erDiagram
     <button type="button" data-action="reset">Reset</button>
     <span class="lightbox-legend"><span class="swatch swatch--rln"></span>RLN table<span class="swatch swatch--new" style="margin-left:14px"></span>Proposed / not built yet</span>
     <span class="spacer"></span>
-    <span class="lightbox-hint">scroll/pinch to zoom &middot; drag to pan &middot; click a line to trace it (click again to clear) &middot; double-click to re-center</span>
+    <span class="lightbox-hint">scroll/pinch to zoom &middot; drag to pan &middot; click a line to trace it, or a table to select every line connected to it &middot; click again or click empty space to clear &middot; double-click to re-center</span>
     <span class="spacer"></span>
     <button type="button" data-action="close" aria-label="Close">&times;</button>
   </div>
@@ -1682,29 +1683,73 @@ erDiagram
   var scale = 1, tx = 0, ty = 0;
   var dragging = false, lastX = 0, lastY = 0, movedDuringDrag = false;
   var pinch = null;
-  var highlightedEdge = null;
+  var highlightedEdges = [];
+  var selectedEntity = null;
 
-  function clearEdgeHighlight() {
-    if (highlightedEdge) { highlightedEdge.classList.remove('edge-highlighted'); highlightedEdge = null; }
+  function clearSelection() {
+    highlightedEdges.forEach(function (e) { e.classList.remove('edge-highlighted'); });
+    highlightedEdges = [];
+    if (selectedEntity) { selectedEntity.classList.remove('entity-selected'); selectedEntity = null; }
   }
 
-  function highlightEdge(edge) {
-    if (highlightedEdge === edge) { clearEdgeHighlight(); return; }
-    clearEdgeHighlight();
-    edge.classList.add('edge-highlighted');
-    highlightedEdge = edge;
+  function highlightEdgeSet(edges, entityG) {
+    clearSelection();
+    edges.forEach(function (e) { e.classList.add('edge-highlighted'); });
+    highlightedEdges = edges;
+    if (entityG) { entityG.classList.add('entity-selected'); selectedEntity = entityG; }
+  }
+
+  function toggleSingleEdge(edge) {
+    if (highlightedEdges.length === 1 && highlightedEdges[0] === edge && !selectedEntity) {
+      clearSelection();
+      return;
+    }
+    highlightEdgeSet([edge], null);
+  }
+
+  function toggleEntity(entityG, edges) {
+    if (selectedEntity === entityG) { clearSelection(); return; }
+    highlightEdgeSet(edges, entityG);
+  }
+
+  function allEdges(svg) {
+    var edges = Array.prototype.slice.call(svg.querySelectorAll('path[marker-start], path[marker-end]'));
+    if (!edges.length) edges = Array.prototype.slice.call(svg.querySelectorAll('[class*="relationship" i]'));
+    return edges;
   }
 
   function wireEdgeHighlighting(svg) {
-    var edges = Array.prototype.slice.call(svg.querySelectorAll('path[marker-start], path[marker-end]'));
-    if (!edges.length) edges = Array.prototype.slice.call(svg.querySelectorAll('[class*="relationship" i]'));
-    edges.forEach(function (edge) {
+    allEdges(svg).forEach(function (edge) {
       edge.classList.add('diagram-edge');
       edge.style.pointerEvents = 'stroke';
       edge.addEventListener('click', function (e) {
         e.stopPropagation();
         if (movedDuringDrag) return;
-        highlightEdge(edge);
+        toggleSingleEdge(edge);
+      });
+    });
+  }
+
+  // Edge ids encode the entities they connect, e.g. "...-id_entity-dealers-0_entity-dealer_stores-1_3"
+  // or "...-entity-dealers-0-cyclic-special-1" for a self-referencing relationship (one name only).
+  function entityNamesInEdgeId(id) {
+    var names = [], re = /entity-([A-Za-z_][A-Za-z0-9_]*)-\d+/g, m;
+    while ((m = re.exec(id || '')) !== null) names.push(m[1]);
+    return names;
+  }
+
+  function wireEntityHighlighting(svg) {
+    entityNodes(svg).forEach(function (g) {
+      var name = entityNameOf(g);
+      if (!name) return;
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (movedDuringDrag) return;
+        var touching = allEdges(svg).filter(function (edge) {
+          return entityNamesInEdgeId(edge.id).indexOf(name) !== -1;
+        });
+        toggleEntity(g, touching);
       });
     });
   }
@@ -1778,10 +1823,12 @@ erDiagram
 
   function openLightbox(svgEl) {
     stage.innerHTML = '';
-    highlightedEdge = null;
+    highlightedEdges = [];
+    selectedEntity = null;
     var clone = svgEl.cloneNode(true);
     stage.appendChild(clone);
     wireEdgeHighlighting(clone);
+    wireEntityHighlighting(clone);
     highlightNewItems(clone);
     highlightRlnTables(clone);
     lightbox.hidden = false;
@@ -1793,7 +1840,8 @@ erDiagram
     lightbox.hidden = true;
     document.body.style.overflow = '';
     stage.innerHTML = '';
-    highlightedEdge = null;
+    highlightedEdges = [];
+    selectedEntity = null;
   }
 
   document.querySelectorAll('.diagram-wrap').forEach(function (wrap) {
@@ -1825,7 +1873,7 @@ erDiagram
   viewport.addEventListener('dblclick', fitToViewport);
   viewport.addEventListener('click', function () {
     if (movedDuringDrag) { movedDuringDrag = false; return; }
-    clearEdgeHighlight();
+    clearSelection();
   });
 
   viewport.addEventListener('mousedown', function (e) {
