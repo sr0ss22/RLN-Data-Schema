@@ -480,7 +480,23 @@ erDiagram
     partner_dealer_store_config {
         uuid dealer_id PK
         text store_number "unique, RLN partner store #"
-        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive, RDIS-363"
+        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive by business rule"
+        text status "🆕 NEW — active/inactive/never_been_active/deactivated"
+        boolean dealer_only_store "🆕 NEW"
+        date hdrln_date "🆕 NEW — store go-live date"
+        text vendor_account_number "🆕 NEW"
+        text ap_vendor_code "🆕 NEW — installer payment"
+        boolean pre_qual "🆕 NEW"
+        boolean no_installer "🆕 NEW"
+        text special_store_category "🆕 NEW — free text, channel-specific catch-all"
+        text channel_region "🆕 NEW"
+        int district "🆕 NEW"
+        int byo "🆕 NEW — HD channel, meaning TBD"
+        text channel_dsm "🆕 NEW — channel's own contact"
+        text rln_sales_manager "🆕 NEW — HD's own contact, distinct from dealer-level bdm"
+        text regional_sales_manager "🆕 NEW"
+        text channel_rsm "🆕 NEW"
+        text area_sales_manager "🆕 NEW"
     }
     partner_store_dealer_links {
         uuid main_account_dealer_id FK
@@ -491,6 +507,8 @@ erDiagram
         text rln_vendor_number "🆕 NEW — for RLN payment, RDIS-63"
         text onboarding_status "🆕 NEW — onboarding/setup_complete/no_longer_participating/declined_to_participate"
         text rln_market "🆕 NEW — value meaning TBD"
+        date hdrln_date "🆕 NEW — dealer go-live date"
+        text bdm "🆕 NEW — distinct from store-level rln_sales_manager"
     }
     partner_user_skills {
         uuid user_id FK
@@ -1024,7 +1042,23 @@ erDiagram
     partner_dealer_store_config {
         uuid dealer_id PK
         text store_number "unique, RLN partner store #"
-        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive, RDIS-363"
+        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive by business rule"
+        text status "🆕 NEW — active/inactive/never_been_active/deactivated"
+        boolean dealer_only_store "🆕 NEW"
+        date hdrln_date "🆕 NEW — store go-live date"
+        text vendor_account_number "🆕 NEW"
+        text ap_vendor_code "🆕 NEW — installer payment"
+        boolean pre_qual "🆕 NEW"
+        boolean no_installer "🆕 NEW"
+        text special_store_category "🆕 NEW — free text, channel-specific catch-all"
+        text channel_region "🆕 NEW"
+        int district "🆕 NEW"
+        int byo "🆕 NEW — HD channel, meaning TBD"
+        text channel_dsm "🆕 NEW — channel's own contact"
+        text rln_sales_manager "🆕 NEW — HD's own contact, distinct from dealer-level bdm"
+        text regional_sales_manager "🆕 NEW"
+        text channel_rsm "🆕 NEW"
+        text area_sales_manager "🆕 NEW"
     }
     partner_store_dealer_links {
         uuid main_account_dealer_id FK
@@ -1035,6 +1069,8 @@ erDiagram
         text rln_vendor_number "🆕 NEW — for RLN payment, RDIS-63"
         text onboarding_status "🆕 NEW — onboarding/setup_complete/no_longer_participating/declined_to_participate"
         text rln_market "🆕 NEW — value meaning TBD"
+        date hdrln_date "🆕 NEW — dealer go-live date"
+        text bdm "🆕 NEW — distinct from store-level rln_sales_manager"
     }
     partner_user_skills {
         uuid user_id FK
