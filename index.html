@@ -480,6 +480,7 @@ erDiagram
     partner_dealer_store_config {
         uuid dealer_id PK
         text store_number "unique, RLN partner store #"
+        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive, RDIS-363"
     }
     partner_store_dealer_links {
         uuid main_account_dealer_id FK
@@ -487,6 +488,9 @@ erDiagram
     }
     partner_dealer_status {
         uuid dealer_id PK
+        text rln_vendor_number "🆕 NEW — for RLN payment, RDIS-63"
+        text onboarding_status "🆕 NEW — onboarding/setup_complete/no_longer_participating/declined_to_participate"
+        text rln_market "🆕 NEW — value meaning TBD"
     }
     partner_user_skills {
         uuid user_id FK
@@ -530,7 +534,7 @@ erDiagram
     dealers ||..o{ erp_account_metadata : "dealer's own SAP account info (synced copy)"
     dealers ||--|| partner_dealer_store_config : "which dealer owns this retail-partner store number"
     dealers ||--o{ partner_store_dealer_links : "which dealers are teamed to which stores"
-    dealers ||--|| partner_dealer_status : "is this dealer opted in to RLN"
+    dealers ||--|| partner_dealer_status : "dealer-level RLN account record — vendor #, onboarding status, market"
     dealer_users ||--o{ partner_user_skills : "RLN product/brand skills this user holds"
     dealer_users ||--|| partner_user_location : "lat/long + service radius"
     dealer_users ||--|| partner_user_assignment_config : "active flag + assignment priority"
@@ -542,7 +546,7 @@ erDiagram
       <div class="diagram-caption">also in this domain: dealer_location_hours, vendor_configuration_fields, dealer_vendor_configuration_fields/exclusions, erp_account_types, dealer_exclusivity, dealer_sales_metrics, dealer_rankings, dealer_segments, account_data_health_snapshots, dealer_owner_provision_jobs, login_history, store_audit_pending, transfer_step, ownership_transfer_journal</div>
 
       <div class="callout full">
-        <p><strong>RLN impact on Dealers:</strong> three new tables already exist and are live — one resolves a retail partner's store number (e.g. a specific Home Depot location) to the Brite dealer who services it, one records which dealers are teamed up to work that store's leads, and one is a simple on/off switch for whether a dealer participates in RLN at all. This is the foundation everything else in RLN routing sits on top of, and it already shipped (early July 2026) — it is <em>not</em> something still being built, even though it's easy to assume otherwise since it's so new. For your migration mapping: any "which dealer services this partner store" question should resolve through these three tables, not by inferring it from an address or account number.</p>
+        <p><strong>RLN impact on Dealers:</strong> three new tables already exist and are live — one resolves a retail partner's store number (e.g. a specific Home Depot location) to the Brite dealer who services it, one records which dealers are teamed up to work that store's leads, and one started as a simple on/off switch for whether a dealer participates in RLN. This is the foundation everything else in RLN routing sits on top of, and it already shipped (early July 2026) — it is <em>not</em> something still being built, even though it's easy to assume otherwise since it's so new. For your migration mapping: any "which dealer services this partner store" question should resolve through these three tables, not by inferring it from an address or account number. <strong>Update, 2026-08-08:</strong> that third table's on/off switch is being retired — "active" is now derived from whether a live teaming row exists, not stored — and the table itself is being repurposed to hold the dealer-level RLN account fields Salesforce's Dealer Account object carries today (RLN vendor number, onboarding status, market), landing via RDIS-63. Whether the account is a partner or a dealer is a separate, newly-defined classifier off <span class="mono">erp_account_metadata.customer_group</span>, not a stored flag either.</p>
       </div>
       <p>Nothing in Dealers stores a direct pointer to a Lead, appointment, Quote, Order, Work Order, or Customer — those connections are always looked up live from the owning system when needed, not stored here. The one exception: when a dealer's SAP account number changes hands from one owner to another, Dealers actively pushes that change into the Orders system and keeps a record of exactly what got updated.</p>
     </section>
@@ -1020,6 +1024,7 @@ erDiagram
     partner_dealer_store_config {
         uuid dealer_id PK
         text store_number "unique, RLN partner store #"
+        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive, RDIS-363"
     }
     partner_store_dealer_links {
         uuid main_account_dealer_id FK
@@ -1027,6 +1032,9 @@ erDiagram
     }
     partner_dealer_status {
         uuid dealer_id PK
+        text rln_vendor_number "🆕 NEW — for RLN payment, RDIS-63"
+        text onboarding_status "🆕 NEW — onboarding/setup_complete/no_longer_participating/declined_to_participate"
+        text rln_market "🆕 NEW — value meaning TBD"
     }
     partner_user_skills {
         uuid user_id FK
@@ -1064,7 +1072,7 @@ erDiagram
     dealers ||..o{ erp_account_metadata : "dealer's own SAP account info (synced copy)"
     dealers ||--|| partner_dealer_store_config : "which dealer owns this retail-partner store number"
     dealers ||--o{ partner_store_dealer_links : "which dealers are teamed to which stores"
-    dealers ||--|| partner_dealer_status : "is this dealer opted in to RLN"
+    dealers ||--|| partner_dealer_status : "dealer-level RLN account record — vendor #, onboarding status, market"
     dealer_users ||--o{ partner_user_skills : "RLN product/brand skills this user holds"
     dealer_users ||--|| partner_user_location : "lat/long + service radius"
     dealer_users ||--|| partner_user_assignment_config : "active flag + assignment priority"
