@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brite Entity Schema &amp; RLN Gap Analysis</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A7%A9%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+
+<style>
+  :root {
+    --paper: #F3F6FB;
+    --paper-raised: #FFFFFF;
+    --ink: #1A2233;
+    --ink-soft: #4B5567;
+    --gray-100: #EAEFF6;
+    --gray-200: #DCE3EE;
+    --gray-300: #C2CCDE;
+    --gray-400: #8D99B0;
+    --border: #D3DBE8;
+    --accent: #3452D9;
+    --accent-soft: #E7EBFC;
+    --accent-ink: #1E2E8F;
+    --mono-bg: #EAEEF8;
+
+    --ok: #1F8F5B;        --ok-soft: #E4F6ED;
+    --field-gap: #A6690A; --field-gap-soft: #FBF0DC;
+    --table-gap: #C1432A; --table-gap-soft: #FBE7E1;
+    --migrating: #7550C4; --migrating-soft: #EEE8FB;
+    --covered: #6B7686;   --covered-soft: #E9ECF1;
+
+    --font-display: "Futura", "Avenir Next", "Century Gothic", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Charter", "Iowan Old Style", Georgia, "Palatino Linotype", serif;
+    --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, "Cascadia Code", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0E1420; --paper-raised: #161D2C;
+      --ink: #E4E9F2; --ink-soft: #A6B0C4;
+      --gray-100: #1B2334; --gray-200: #232C40; --gray-300: #3A4560; --gray-400: #647089;
+      --border: #2B3448; --accent: #7C93F5; --accent-soft: #1B2646; --accent-ink: #C2CDFA;
+      --mono-bg: #182035;
+      --ok: #4FBE86; --ok-soft: #16301F;
+      --field-gap: #E3A73E; --field-gap-soft: #362A12;
+      --table-gap: #E56A4E; --table-gap-soft: #3A2019;
+      --migrating: #A98BE8; --migrating-soft: #2A2140;
+      --covered: #8A93A6; --covered-soft: #232936;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0E1420; --paper-raised: #161D2C;
+    --ink: #E4E9F2; --ink-soft: #A6B0C4;
+    --gray-100: #1B2334; --gray-200: #232C40; --gray-300: #3A4560; --gray-400: #647089;
+    --border: #2B3448; --accent: #7C93F5; --accent-soft: #1B2646; --accent-ink: #C2CDFA;
+    --mono-bg: #182035;
+    --ok: #4FBE86; --ok-soft: #16301F;
+    --field-gap: #E3A73E; --field-gap-soft: #362A12;
+    --table-gap: #E56A4E; --table-gap-soft: #3A2019;
+    --migrating: #A98BE8; --migrating-soft: #2A2140;
+    --covered: #8A93A6; --covered-soft: #232936;
+  }
+  :root[data-theme="light"] {
+    --paper: #F3F6FB; --paper-raised: #FFFFFF;
+    --ink: #1A2233; --ink-soft: #4B5567;
+    --gray-100: #EAEFF6; --gray-200: #DCE3EE; --gray-300: #C2CCDE; --gray-400: #8D99B0;
+    --border: #D3DBE8; --accent: #3452D9; --accent-soft: #E7EBFC; --accent-ink: #1E2E8F;
+    --mono-bg: #EAEEF8;
+    --ok: #1F8F5B; --ok-soft: #E4F6ED;
+    --field-gap: #A6690A; --field-gap-soft: #FBF0DC;
+    --table-gap: #C1432A; --table-gap-soft: #FBE7E1;
+    --migrating: #7550C4; --migrating-soft: #EEE8FB;
+    --covered: #6B7686; --covered-soft: #E9ECF1;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--paper); color: var(--ink); }
+  body {
+    font-family: var(--font-body);
+    line-height: 1.55;
+    font-size: 16px;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    color: var(--ink);
+    margin: 0;
+  }
+  a { color: var(--accent-ink); }
+  code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1360px;
+    margin: 0 auto;
+  }
+  @media (max-width: 880px) {
+    .shell { grid-template-columns: 1fr; }
+    .nav { position: static !important; height: auto !important; border-right: none !important; border-bottom: 1px solid var(--border); }
+  }
+
+  .nav {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 28px 20px 40px;
+    border-right: 1px solid var(--border);
+    font-family: var(--font-display);
+  }
+  .nav .brand { font-size: 0.95rem; font-weight: 800; letter-spacing: 0.02em; margin-bottom: 4px; }
+  .nav .brand small { display: block; font-family: var(--font-body); font-weight: 400; font-style: italic; color: var(--ink-soft); font-size: 0.78rem; margin-top: 2px; }
+  .nav ul { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .nav li a {
+    display: block; padding: 6px 8px; border-radius: 4px; font-size: 0.82rem; font-weight: 600;
+    color: var(--ink-soft); text-decoration: none;
+  }
+  .nav li a:hover { background: var(--gray-100); color: var(--ink); }
+  .nav .group-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 16px 8px 4px; opacity: 0.75; }
+  .nav .sub a { padding-left: 20px; font-weight: 500; font-size: 0.78rem; }
+
+  main { padding: 40px clamp(20px, 4vw, 64px) 100px; min-width: 0; }
+  .prose { max-width: 700px; }
+  section { margin-bottom: 64px; }
+  section > .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-display); font-size: 0.72rem; font-weight: 800;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-ink);
+    background: var(--accent-soft); padding: 4px 10px; border-radius: 3px; margin-bottom: 14px;
+  }
+  section h2 { font-size: 1.7rem; margin-bottom: 10px; }
+  section h3 { font-size: 1.2rem; margin: 28px 0 8px; }
+  .dek { font-size: 1.02rem; color: var(--ink-soft); max-width: 700px; margin-top: 8px; }
+  p { margin: 0 0 14px; max-width: 700px; }
+  p.wide { max-width: none; }
+  .full { max-width: none; }
+
+  .hero {
+    padding: 56px clamp(20px, 4vw, 64px) 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 { font-size: clamp(1.9rem, 3.4vw, 2.6rem); max-width: 900px; }
+  .hero .dek { font-size: 1.08rem; margin-top: 14px; }
+  .stat-row { display: flex; gap: 28px; margin-top: 28px; flex-wrap: wrap; }
+  .stat { font-family: var(--font-mono); }
+  .stat .num { font-size: 1.7rem; font-weight: 700; color: var(--accent-ink); display: block; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .diagram-wrap {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--paper-raised);
+    padding: 18px;
+    overflow-x: auto;
+    margin: 18px 0 22px;
+    position: relative;
+    cursor: zoom-in;
+  }
+  .diagram-wrap:hover { border-color: var(--accent); }
+  .diagram-wrap::after {
+    content: "\2922 click to enlarge";
+    position: absolute; top: 10px; right: 14px;
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft);
+    background: var(--paper-raised); padding: 3px 9px; border-radius: 10px;
+    border: 1px solid var(--border); opacity: 0; transition: opacity 0.15s;
+    pointer-events: none;
+  }
+  .diagram-wrap:hover::after { opacity: 1; }
+  .diagram-wrap .mermaid { min-width: 640px; }
+  .diagram-caption { font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-soft); margin-top: -8px; margin-bottom: 20px; }
+
+  .lightbox {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; inset: 0; z-index: 1000;
+    width: 100vw; height: 100vh;
+    background: #FFFFFF; opacity: 1;
+    display: flex; flex-direction: column;
+  }
+  .lightbox[hidden] { display: none; }
+  .lightbox-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 14px 18px; flex-shrink: 0;
+    background: #FFFFFF; border-bottom: 1px solid #E2E7F0;
+  }
+  .lightbox-toolbar .spacer { flex: 1; }
+  .lightbox-toolbar button {
+    font-family: var(--font-display); font-size: 0.8rem; font-weight: 700;
+    background: #EFF2F8; color: #1A2233; border: 1px solid #D3DBE8;
+    border-radius: 5px; padding: 7px 13px; cursor: pointer; line-height: 1;
+  }
+  .lightbox-toolbar button:hover { background: #E1E7F3; }
+  .lightbox-toolbar button:focus-visible { outline: 2px solid #3452D9; outline-offset: 1px; }
+  .lightbox-zoom-label { font-family: var(--font-mono); color: #55607A; font-size: 0.8rem; min-width: 46px; text-align: center; }
+  .lightbox-hint { font-family: var(--font-body); font-style: italic; color: #8791A6; font-size: 0.78rem; }
+  .lightbox-viewport {
+    flex: 1; overflow: hidden; cursor: grab; touch-action: none; position: relative;
+    background: #FFFFFF;
+  }
+  .lightbox-viewport.dragging { cursor: grabbing; }
+  .lightbox-stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  .lightbox-stage svg { display: block; }
+  .lightbox-stage .diagram-edge { cursor: pointer; transition: stroke 0.1s, filter 0.1s; }
+  .lightbox-stage .diagram-edge:hover { stroke: #7C93F5 !important; filter: drop-shadow(0 0 2px rgba(124,147,245,0.65)); }
+  .lightbox-stage .edge-highlighted { stroke: #3452D9 !important; stroke-width: 3px !important; filter: drop-shadow(0 0 3px rgba(52,82,217,0.75)); }
+  .lightbox-stage g.entity-selected .outer-path path { stroke: #3452D9 !important; stroke-width: 3px !important; filter: drop-shadow(0 0 4px rgba(52,82,217,0.6)); }
+  .lightbox-stage g.rln-entity .outer-path path,
+  .lightbox-stage g.rln-entity .row-rect-odd path,
+  .lightbox-stage g.rln-entity .row-rect-even path { fill: #E3ECFF !important; stroke: #2F5FD9 !important; }
+  .lightbox-stage g.new-item-entity .outer-path path,
+  .lightbox-stage g.new-item-entity .row-rect-odd path,
+  .lightbox-stage g.new-item-entity .row-rect-even path { fill: #FBE7E1 !important; stroke: #C1432A !important; }
+  .lightbox-legend { display: flex; gap: 16px; align-items: center; margin-left: 12px; font-family: var(--font-body); font-size: 0.78rem; color: #55607A; }
+  .lightbox-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .lightbox-legend .swatch--rln { background: #E3ECFF; border: 1px solid #2F5FD9; }
+  .lightbox-legend .swatch--new { background: #FBE7E1; border: 1px solid #C1432A; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    margin: 18px 0;
+    max-width: 700px;
+  }
+  .callout.full { max-width: none; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout strong { font-family: var(--font-display); }
+
+  .table-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 4px 18px; margin: 16px 0 8px; max-width: none;
+    font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-soft);
+  }
+  .table-list li { list-style: none; padding: 3px 0; border-bottom: 1px dotted var(--border); }
+  .table-list { padding: 0; }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin: 14px 0 28px; }
+  table.data caption { text-align: left; font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); margin-bottom: 6px; }
+  table.data th {
+    text-align: left; font-family: var(--font-display); font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--ink-soft); padding: 8px 12px; border-bottom: 2px solid var(--border);
+    background: var(--gray-100); white-space: nowrap;
+  }
+  table.data td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.data td.mono, table.data td .mono { font-family: var(--font-mono); font-size: 0.86em; }
+  table.data tr:last-child td { border-bottom: none; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .table-scroll table.data { margin: 0; }
+  .table-scroll table.data th:first-child, .table-scroll table.data td:first-child { padding-left: 16px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+    font-family: var(--font-display); font-size: 0.68rem; font-weight: 800;
+    letter-spacing: 0.02em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 20px;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .badge--ok { background: var(--ok-soft); color: var(--ok); }
+  .badge--ok::before { background: var(--ok); }
+  .badge--field { background: var(--field-gap-soft); color: var(--field-gap); }
+  .badge--field::before { background: var(--field-gap); }
+  .badge--table { background: var(--table-gap-soft); color: var(--table-gap); }
+  .badge--table::before { background: var(--table-gap); }
+  .badge--migrating { background: var(--migrating-soft); color: var(--migrating); }
+  .badge--migrating::before { background: var(--migrating); }
+  .badge--covered { background: var(--covered-soft); color: var(--covered); }
+  .badge--covered::before { background: var(--covered); }
+
+  .callout.callout--warn { border-left-color: var(--table-gap); background: var(--table-gap-soft); }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 18px 0 28px; padding: 14px 18px; background: var(--gray-100); border-radius: 6px; }
+  .legend .item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--ink-soft); }
+
+  .domain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 20px 0 8px; }
+  .domain-card {
+    border: 1px solid var(--border); border-radius: 6px; padding: 14px 14px 12px; background: var(--paper-raised);
+    text-decoration: none; display: block;
+  }
+  .domain-card .n { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-ink); }
+  .domain-card .t { font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; color: var(--ink); margin-top: 4px; }
+  .domain-card .s { font-size: 0.76rem; color: var(--ink-soft); margin-top: 3px; }
+
+  ticket { font-family: var(--font-mono); font-size: 0.86em; background: var(--mono-bg); padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+
+  hr.rule { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  footer { padding: 30px clamp(20px, 4vw, 64px) 60px; border-top: 1px solid var(--border); color: var(--ink-soft); font-size: 0.82rem; }
+</style>
+
+<div class="hero">
+  <span class="eyebrow">Brite platform &middot; entity schema</span>
+  <h1>How Dealers, Customers, Leads, Events, Quotes, Orders &amp; Work Orders connect — and where the current RLN backlog needs new schema</h1>
+  <p class="dek">A verified map of the seven core entity domains across the Brite monorepo, plus a cross-reference against every active RLN‑Discovery and RLN‑Delivery ticket to flag which tables need new fields, which need new connecting tables, and which are already covered.</p>
+  <div class="stat-row">
+    <div class="stat"><span class="num">~150</span><span class="label">tables verified</span></div>
+    <div class="stat"><span class="num">7</span><span class="label">domains</span></div>
+    <div class="stat"><span class="num">248</span><span class="label">active RLN tickets reviewed</span></div>
+    <div class="stat"><span class="num">7</span><span class="label">significant corrections verified live</span></div>
+    <div class="stat"><span class="num">15</span><span class="label">proposed RLN additions, marked 🆕 in every diagram</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="nav">
+    <div class="brand">Brite Schema Map<small>2026&#8209;08&#8209;05 &middot; verified against <code>brite&#8209;entity&#8209;schema&#8209;gaps</code> worktree</small></div>
+    <ul>
+      <li><a href="#how-to-read">How to read this</a></li>
+      <li><a href="#overview">Cross-domain map</a></li>
+    </ul>
+    <div class="group-label">Domains</div>
+    <ul>
+      <li><a href="#dealers">01 &middot; Dealers</a></li>
+      <li><a href="#customers">02 &middot; Customers</a></li>
+      <li><a href="#leads">03 &middot; Leads</a></li>
+      <li><a href="#events">04 &middot; Events / Scheduling</a></li>
+      <li><a href="#quotes">05 &middot; Quotes</a></li>
+      <li><a href="#orders">06 &middot; Orders</a></li>
+      <li><a href="#workorders">07 &middot; Work Orders</a></li>
+      <li><a href="#master-map">&#9673; Master entity map</a></li>
+    </ul>
+    <div class="group-label">RLN gap analysis</div>
+    <ul>
+      <li><a href="#gap-identity">Partner identity on Quote/Order/WO</a></li>
+      <li><a href="#gap-scheduling">Scheduling engine migration</a></li>
+      <li><a href="#gap-dc">Direct Connect quote bridge</a></li>
+      <li><a href="#gap-financial">Financial ledger / Epicor posting</a></li>
+      <li><a href="#gap-docs">Documents &amp; signatures</a></li>
+      <li><a href="#gap-quoting">Quote authoring &amp; custom products</a></li>
+      <li><a href="#gap-cs">Customer Service &amp; service detour</a></li>
+      <li><a href="#gap-misc">Everything else</a></li>
+    </ul>
+    <div class="group-label">Reference</div>
+    <ul>
+      <li><a href="#methodology">Methodology &amp; confidence</a></li>
+    </ul>
+  </nav>
+
+  <main>
+
+    <section id="how-to-read">
+      <span class="eyebrow">Start here</span>
+      <h2>How to read this</h2>
+      <p>Every finding below is tagged with one of five verdicts. They mean specifically:</p>
+      <div class="legend full">
+        <span class="item"><span class="badge badge--ok">Schema exists</span> the column or table is already there — the ticket is a logic/UI/integration gap, not a schema gap</span>
+        <span class="item"><span class="badge badge--field">New field</span> an existing table needs one or more new columns</span>
+        <span class="item"><span class="badge badge--table">New table</span> no existing table can hold this — a new table (and usually a join) is needed</span>
+        <span class="item"><span class="badge badge--migrating">Mid-migration</span> the schema exists but is actively being replaced by a newer model in the same active backlog</span>
+        <span class="item"><span class="badge badge--covered">Covered elsewhere</span> a different ticket or an already-shipped feature already answers this</span>
+      </div>
+      <p>Anything marked <strong>🆕 NEW</strong> inside a diagram doesn't exist yet — it's a proposed table or column, grounded in a specific active ticket, not current schema. Everything else in the diagrams is real, verified schema. In full-screen, 🆕 NEW items are also highlighted in red so they stand out from a distance.</p>
+      <p>Dashed lines in the diagrams mean the two tables live in <strong>different systems</strong> and are linked only by a shared ID value that both sides agree to honor — there's no database rule forcing them to stay in sync, just convention (and in a few places, a background job that copies data across on a delay). Solid lines mean the two tables live in the <strong>same system</strong> and the link is a real, enforced database relationship.</p>
+      <p><strong>Click any diagram to open it full-screen</strong> with pan and zoom — scroll or pinch to zoom, drag to pan, double-click to re-center, Escape or the &times; button to close. Once you're in full-screen, <strong>click any connecting line to highlight it in blue</strong> so you can trace exactly which two tables it links, even when several lines cross near each other. Click the line again (or click empty space) to clear it. The diagrams are dense; this is the intended way to read them, not just the small inline view.</p>
+    </section>
+
+    <section id="overview">
+      <span class="eyebrow">The big picture</span>
+      <h2>Cross-domain map</h2>
+      <p class="dek">One representative table per domain, and how the whole journey actually connects today: a Dealer sells to a Customer, a Customer starts as a Lead, a Lead gets an appointment, an appointment turns into a Quote, a Quote becomes an Order, and an Order becomes one or more Work Orders that get installed.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    dealers {
+        uuid id PK
+        uuid parent_id FK
+    }
+    consumers {
+        uuid id PK
+        text entity_type "contact | account"
+    }
+    leads {
+        uuid id PK
+        uuid dealer_id FK
+        uuid referral_store_dealer_id FK
+        text partner_channel
+    }
+    leads_consumers {
+        uuid lead_id FK
+        uuid consumer_id FK
+        text relationship_type
+    }
+    appointments {
+        uuid id PK
+        uuid consumer_id FK
+        uuid dealer_id FK
+        text note "legacy Events system of record"
+    }
+    bookings {
+        uuid id PK
+        uuid lead_id FK
+        uuid dealer_id FK
+        text note "new Scheduling Engine"
+    }
+    quotes {
+        uuid id PK
+        uuid dealer_id FK
+        uuid lead_id FK
+        text note "lives inside the Orders system's database"
+    }
+    orders {
+        int id PK
+        uuid brite_dealer_id FK
+        uuid brite_consumer_id FK
+        uuid brite_lead_id FK
+        uuid brite_quote_id FK
+    }
+    work_orders {
+        uuid id PK
+        uuid consumer_id FK
+        uuid dealer_id FK
+        uuid lead_id FK
+    }
+
+    dealers ||--o{ consumers : "consumer.dealer_id"
+    dealers ||--o{ leads : "leads.dealer_id"
+    leads ||--o{ leads_consumers : "lead_id"
+    consumers ||--o{ leads_consumers : "consumer_id (LINKED_ACCOUNT)"
+    leads ||..o{ appointments : "the lead's scheduled visit (old system)"
+    leads ||--o{ bookings : "the lead's scheduled visit (new system)"
+    leads ||..o{ quotes : "synced copy of the lead's quote(s)"
+    leads ||..o{ orders : "synced copy of the lead's order(s)"
+    dealers ||--o{ quotes : "which dealer, priced under which vendor setup"
+    quotes ||..o{ work_orders : "which measure/install jobs came from this quote"
+    quotes ||..o{ orders : "quote submitted as one or more orders"
+    dealers ||--o{ orders : "owning dealer"
+    consumers ||--o{ orders : "buyer"
+    orders ||..o{ work_orders : "which install/service jobs belong to this order"
+    consumers ||--o{ work_orders : "who the job is for (required)"
+    dealers ||--o{ work_orders : "which dealer owns the job (required)"
+    work_orders ||..o{ appointments : "the job's scheduled visit (old system, not yet moved)"
+</pre>
+      </div>
+      <p>Three things stand out immediately. First, <strong>Events is running two systems at once</strong> — the old appointment table and a brand-new scheduling system, and Leads is already wired to both, mid-changeover. Second, <strong>Quotes doesn't live where the name suggests</strong> — it used to be its own separate system, but was recently absorbed into the same database as Orders. Third, almost every connection that crosses from one domain into another is the "different systems, matching ID only" kind, not a real enforced database link — which matters for reporting, because a join that works cleanly inside one system's data won't always work the same way once you're crossing between Leads, Quotes, Orders, and Work Orders.</p>
+    </section>
+
+    <section id="dealers">
+      <span class="eyebrow">01 &middot; services/dealers</span>
+      <h2>Dealers</h2>
+      <p class="dek">The dealer/account hierarchy, its Salesforce/SAP identity, and — critically for RLN — the partner-store routing tables that let a big-box retailer's store number resolve to a servicing Brite dealer.</p>
+
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    dealers {
+        uuid id PK
+        uuid parent_id FK "self, hierarchy"
+    }
+    dealer_stores {
+        uuid id PK
+        uuid dealer_id FK
+        text salesforce_account_id "actually holds SAP KUNNR"
+    }
+    store_audit {
+        uuid id PK
+        uuid dealer_store_id FK "nullable, no live constraint"
+        uuid owning_dealer_id FK
+        text kunnr "SAP account number"
+    }
+    dealer_users {
+        uuid id PK
+        text zitadel_id
+    }
+    dealer_user_associations {
+        uuid dealer_id FK
+        uuid user_id FK
+    }
+    dealer_vendor_configurations {
+        uuid id PK
+        uuid dealer_id FK
+        uuid vendor_id FK
+    }
+    erp_account_metadata {
+        uuid id PK
+        text account_number "SAP KNA1 = dealer's own Sold-To"
+        uuid dealer_id FK "nullable, no constraint"
+    }
+    partner_dealer_store_config {
+        uuid dealer_id PK
+        text store_number "unique, RLN partner store #"
+        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive by business rule"
+        text status "🆕 NEW — active/inactive/never_been_active/deactivated"
+        boolean dealer_only_store "🆕 NEW"
+        date hdrln_date "🆕 NEW — store go-live date"
+        text vendor_account_number "🆕 NEW"
+        text ap_vendor_code "🆕 NEW — installer payment"
+        boolean pre_qual "🆕 NEW"
+        boolean no_installer "🆕 NEW"
+        text special_store_category "🆕 NEW — free text, channel-specific catch-all"
+        text channel_region "🆕 NEW"
+        int district "🆕 NEW"
+        int byo "🆕 NEW — HD channel, meaning TBD"
+        text channel_dsm "🆕 NEW — channel's own contact"
+        text rln_sales_manager "🆕 NEW — HD's own contact, distinct from dealer-level bdm"
+        text regional_sales_manager "🆕 NEW"
+        text channel_rsm "🆕 NEW"
+        text area_sales_manager "🆕 NEW"
+    }
+    partner_store_dealer_links {
+        uuid main_account_dealer_id FK
+        uuid partner_dealer_id FK
+    }
+    partner_dealer_status {
+        uuid dealer_id PK
+        text rln_vendor_number "🆕 NEW — for RLN payment, RDIS-63"
+        text onboarding_status "🆕 NEW — onboarding/setup_complete/no_longer_participating/declined_to_participate"
+        text rln_market "🆕 NEW — value meaning TBD"
+        date hdrln_date "🆕 NEW — dealer go-live date"
+        text bdm "🆕 NEW — distinct from store-level rln_sales_manager"
+    }
+    partner_user_skills {
+        uuid user_id FK
+        uuid dealer_id FK
+        text skill_code "RLN itself is a skill code, plus product skills"
+    }
+    partner_user_location {
+        uuid user_id PK
+        double latitude
+        double longitude
+        int service_radius_miles "default 35"
+    }
+    partner_user_assignment_config {
+        uuid user_id PK
+        bool active "false = paused, excluded from resolver"
+        int assignment_priority "1 = primary"
+    }
+    partner_store_user_links {
+        uuid store_id FK "MAIN_ACCOUNT dealer (partner store)"
+        uuid user_id FK "the house-account designer"
+        uuid dealer_id FK "house account the user sits under"
+    }
+    pending_ownership_transfer {
+        uuid id PK
+        text predecessor_account
+        text successor_account
+    }
+    dealer_commission_ledger {
+        uuid order_id FK "🆕 NEW TABLE — proposed for RDIS-193/324/372, doesn't exist yet"
+        uuid dealer_id FK "which dealer gets paid"
+        decimal commission_amount "🆕 NEW"
+        timestamp paid_at "🆕 NEW"
+    }
+
+    dealers ||--o{ dealers : "parent_id (org hierarchy)"
+    dealers ||--o{ dealer_stores : "dealer_id"
+    dealer_stores ||--o| store_audit : "dealer_store_id (legacy)"
+    dealers ||--o{ dealer_user_associations : "dealer_id"
+    dealer_users ||--o{ dealer_user_associations : "user_id"
+    dealers ||--o{ dealer_vendor_configurations : "dealer_id"
+    dealers ||..o{ erp_account_metadata : "dealer's own SAP account info (synced copy)"
+    dealers ||--|| partner_dealer_store_config : "which dealer owns this retail-partner store number"
+    dealers ||--o{ partner_store_dealer_links : "which dealers are teamed to which stores"
+    dealers ||--|| partner_dealer_status : "dealer-level RLN account record — vendor #, onboarding status, market"
+    dealer_users ||--o{ partner_user_skills : "RLN product/brand skills this user holds"
+    dealer_users ||--|| partner_user_location : "lat/long + service radius"
+    dealer_users ||--|| partner_user_assignment_config : "active flag + assignment priority"
+    dealers ||--o{ partner_store_user_links : "store_id (partner store) and dealer_id (house account)"
+    dealer_users ||--o{ partner_store_user_links : "user_id (designer teaming)"
+    dealers ||..o{ dealer_commission_ledger : "🆕 NEW — no payable commission record exists today"
+</pre>
+      </div>
+      <div class="diagram-caption">also in this domain: dealer_location_hours, vendor_configuration_fields, dealer_vendor_configuration_fields/exclusions, erp_account_types, dealer_exclusivity, dealer_sales_metrics, dealer_rankings, dealer_segments, account_data_health_snapshots, dealer_owner_provision_jobs, login_history, store_audit_pending, transfer_step, ownership_transfer_journal</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Dealers:</strong> three new tables already exist and are live — one resolves a retail partner's store number (e.g. a specific Home Depot location) to the Brite dealer who services it, one records which dealers are teamed up to work that store's leads, and one started as a simple on/off switch for whether a dealer participates in RLN. This is the foundation everything else in RLN routing sits on top of, and it already shipped (early July 2026) — it is <em>not</em> something still being built, even though it's easy to assume otherwise since it's so new. For your migration mapping: any "which dealer services this partner store" question should resolve through these three tables, not by inferring it from an address or account number. <strong>Update, 2026-08-08:</strong> that third table's on/off switch is being retired — "active" is now derived from whether a live teaming row exists, not stored — and the table itself is being repurposed to hold the dealer-level RLN account fields Salesforce's Dealer Account object carries today (RLN vendor number, onboarding status, market), landing via RDIS-63. Whether the account is a partner or a dealer is a separate, newly-defined classifier off <span class="mono">erp_account_metadata.customer_group</span>, not a stored flag either.</p>
+      </div>
+      <p>Nothing in Dealers stores a direct pointer to a Lead, appointment, Quote, Order, Work Order, or Customer — those connections are always looked up live from the owning system when needed, not stored here. The one exception: when a dealer's SAP account number changes hands from one owner to another, Dealers actively pushes that change into the Orders system and keeps a record of exactly what got updated.</p>
+    </section>
+
+    <section id="customers">
+      <span class="eyebrow">02 &middot; services/consumers</span>
+      <h2>Customers</h2>
+      <p class="dek">A "Customer" and an "Account" are the same table — <span class="mono">entity_type</span> is the only thing that distinguishes them. No separate accounts table exists anywhere.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    consumers {
+        uuid id PK
+        text entity_type "contact (default) | account"
+        uuid dealer_id FK
+        uuid owner_user_id FK "roles/Zitadel"
+    }
+    consumer_locations {
+        uuid id PK
+        uuid consumer_id FK
+        text location_type
+        bool is_primary
+    }
+    consumer_contacts {
+        uuid id PK
+        uuid consumer_id FK "the Account"
+        uuid contact_consumer_id FK "the Contact"
+        text relationship_type
+    }
+    consumer_dealers {
+        uuid id PK
+        uuid consumer_id FK
+        uuid dealer_id FK
+    }
+    emails { uuid id PK
+        uuid consumer_id FK }
+    phone_numbers { uuid id PK
+        uuid consumer_id FK }
+    rooms { uuid id PK
+        uuid consumer_location_id FK }
+    consumer_orders {
+        uuid consumer_id PK
+        text brite_order_id PK
+    }
+
+    consumers ||--o{ consumer_locations : "consumer_id"
+    consumers ||--o{ consumer_contacts : "consumer_id (Account side)"
+    consumers ||--o{ consumer_contacts : "contact_consumer_id (Contact side)"
+    consumers ||--o{ consumer_dealers : "consumer_id (legacy M:N)"
+    consumers ||--o{ emails : "consumer_id"
+    consumers ||--o{ phone_numbers : "consumer_id"
+    consumer_locations ||--o{ rooms : "consumer_location_id"
+    consumers ||--o{ consumer_orders : "consumer_id (HD/Levolor direct-to-consumer only)"
+</pre>
+      </div>
+      <div class="diagram-caption">No 🆕 NEW markers in this diagram on purpose — nothing here needs to change for RLN, see below. Also in this domain: windows, product_usages, consumer_groups (legacy pricing, superseded by consumers.price_group_id), files/consumer_files, consumer_chat(+attachments+downloads), search_logs, phone_numbers_backup. Separately, <span class="mono">services/order-erp-customers</span> mirrors the <em>dealer's own</em> SAP account with Hunter Douglas (erp_customers/sales_areas/partner_functions/credit_cards) — a completely different thing from this table, despite both being called "customer" in casual conversation.</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Customers: essentially none, and that's the useful thing to know.</strong> A homeowner who came in through Home Depot, JCPenney, or Costco Canada becomes a completely ordinary Customer record here — nothing on this table marks them as partner-sourced, and nothing needs to. The partner/channel identity lives entirely upstream, on the Lead that created them. <strong>For reporting and migration:</strong> if you ever need to segment customers by acquisition channel or retail partner, don't look for it here — you'll need to join back to the originating Lead and read its partner fields there. This table won't grow any new RLN-specific columns.</p>
+      </div>
+      <p>The connection from a Lead to a Customer record runs through the Leads side (<span class="mono">leads_consumers</span>), not this one. <span class="mono">consumer_orders</span> is the one direct link from a Customer straight to an Order, but it only gets filled in for the small slice of customers who buy directly from Hunter Douglas or Levolor with no dealer in between — for the much more common case (a dealer in the middle), the link runs from the Order side instead, via <span class="mono">orders.brite_consumer_id</span>.</p>
+    </section>
+
+    <section id="leads">
+      <span class="eyebrow">03 &middot; services/leads</span>
+      <h2>Leads</h2>
+      <p class="dek">Leads is the front door for RLN — this is where "a Home Depot customer requested a quote" first becomes a row in Brite. It's also where the identity of which partner and which store sent the lead gets captured and preserved.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    leads {
+        uuid id PK
+        uuid dealer_id FK
+        uuid consumer_id FK "legacy"
+        uuid referral_store_dealer_id FK "RLN, immutable, already exists"
+        text partner_channel "RLN, e.g. THD/JCP/COSTCO, already exists"
+        text referral_store_number "RLN, already exists"
+        int status_id FK
+        decimal total_installation_cost "🆕 NEW — proposed for RDIS-460"
+    }
+    lead_status {
+        int id PK
+        int next_id FK "self"
+        int previous_id FK "self"
+    }
+    leads_audits {
+        uuid id PK
+        text message_id "correlates to the source Kafka event"
+        jsonb message "raw event payload; lead identity lives in here, not a column"
+        text event_name
+        text event_log_type
+        text from_stage "already exists"
+        text to_stage "already exists"
+        text from_substage "already exists"
+        text to_substage "already exists"
+        text user_email
+    }
+    leads_consumers {
+        uuid lead_id FK
+        uuid consumer_id FK
+        text relationship_type "incl. LINKED_ACCOUNT"
+    }
+    lead_events {
+        uuid id PK
+        uuid lead_id FK
+        uuid scheduling_event_id FK "legacy appointments.id"
+        uuid dealer_id FK
+    }
+    campaigns { uuid id PK
+        uuid dealer_id FK }
+    partner_channel_mapping {
+        uuid id PK
+        text channel_code
+        text parent_account
+        text sales_org
+        text distribution_channel
+    }
+    partner_config { text partner PK }
+    integration_log { uuid id PK
+        text partner }
+    partner_idempotency_keys {
+        text partner PK
+        text idempotency_key PK
+        uuid lead_id FK
+    }
+    partner_channel_profile {
+        text channel_code PK "🆕 NEW TABLE — proposed, RDIS-410"
+        text country PK "🆕 NEW — composite key with channel_code"
+        text display_name "🆕 NEW"
+        text phone "🆕 NEW"
+        text email "🆕 NEW"
+        text logo_url "🆕 NEW"
+        text website "🆕 NEW — no Salesforce source, populated by hand"
+    }
+    dealer_quote_snapshots { text lead_id PK
+        text quote_id }
+    order_status_snapshots { text order_id PK
+        text lead_id }
+
+    leads ||--o{ lead_events : "lead_id"
+    lead_status ||--o{ leads : "status_id"
+    leads ||..o{ leads_audits : "already exists — lead_id is embedded in the message JSONB, not a column"
+    leads ||--o{ leads_consumers : "lead_id"
+    leads ||..o{ dealer_quote_snapshots : "synced copy of this lead's quote(s)"
+    leads ||..o{ order_status_snapshots : "synced copy of this lead's order(s), drives lead status"
+    leads }o..|| campaigns : "which marketing campaign, if any"
+    leads }o..o{ partner_channel_mapping : "look up SAP pricing context for this partner"
+    partner_idempotency_keys }o--o| leads : "lead_id, ingress dedup"
+    partner_channel_profile ||..o{ partner_channel_mapping : "shared channel_code — 🆕 NEW join, not yet wired"
+</pre>
+      </div>
+      <div class="diagram-caption">also in this domain: lead_labels(+associations), lead_user_assignments, personalized_labels, archive_reasons, rejection_reasons, lead_rejections, lead_source_mappings, lead_interested_in_mappings, lead_event_assigned_users, files/lead_event_files/lead_files, lead_chat(+attachments+downloads), project_costs, lead_cash_balance, installation_metrics_details, lead_windows(+preferences), dc_redirects, dc_continue_without_link_responses, search_logs, lead_resubmission_audit. <strong>Correction from an earlier pass:</strong> this section previously proposed a new <span class="mono">lead_status_history</span> table — wrong, a real activity log (<span class="mono">leads_audits</span>, in the shared <span class="mono">services/audit</span>) already tracks stage/substage transitions, event names and who/when. The likely remaining gap is narrower: specific new RLN event types may need to be explicitly logged by application code, not new columns.</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Leads: the data is captured, but nothing is acting on it yet.</strong> Since early July 2026, every partner-sourced lead lands with three new fields set permanently at intake and never changed afterward: which retail partner sent it (Home Depot, JCPenney, DecorView, DirectBuy, BJ's, Lowe's, or Costco Canada), the raw store number from that partner's system, and the Brite dealer that store number resolves to. A companion reference table also went in a couple days later, mapping each partner to the SAP pricing details a quote from that partner needs to use. What's still missing is the actual matching logic that's supposed to read all of this and decide "so which dealer and which designer should actually work this lead" — that decision-making piece doesn't exist yet. The data to make the decision correctly is already there and ready to use.</p>
+      </div>
+    </section>
+
+    <section id="events">
+      <span class="eyebrow">04 &middot; four coexisting models</span>
+      <h2>Events / Scheduling</h2>
+      <p class="dek">Not one system for scheduling an appointment — four. Three are legacy or on their way out, and one is a brand-new replacement actively being rolled out right now.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    appointments {
+        uuid id PK
+        uuid consumer_id FK "nullable"
+        uuid dealer_id FK "nullable, old scheduling system"
+        text status "SCHEDULED..CANCELED"
+    }
+    bookings {
+        uuid id PK
+        uuid lead_id FK "direct, real link; new scheduling system"
+        uuid dealer_id FK
+        uuid external_appointment_id FK "bridge to the old scheduling system"
+        text status "tentative..no_show"
+        text cancellation_reason "🆕 NEW — proposed for RLN-127, only a bare status exists today"
+    }
+    schedules { uuid id PK
+        uuid dealer_user_id FK }
+    event_types { uuid id PK
+        text slug }
+    sales_appointments {
+        uuid id PK
+        uuid related_dealer_account_uuid FK "sales-team dealer visits, unrelated model"
+        text customer_name "free text, no link to a real customer"
+    }
+    booking_tenant {
+        uuid id PK
+        uuid account_id FK "an org/tenant, not a customer; being retired"
+        text external_client_id "unvalidated free text"
+    }
+    calendar_oauth_tokens { uuid id PK
+        uuid dealer_id FK }
+
+    bookings }o--|| schedules : "dealer_user_id"
+    bookings }o--|| event_types : "event_type_id"
+    bookings }o..o| appointments : "bridge to the old scheduling system"
+    calendar_oauth_tokens ||..o{ appointments : "personal Google Calendar sync"
+</pre>
+      </div>
+      <div class="diagram-caption">also: assigned_users (legacy bridge), availability/out_of_office/event_type_hosts (new engine), calendar_user_preferences, google_calendar_webhook_subscriptions, appointments_sales_users/appointments_dealers (sales domain)</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Events: a full replacement scheduling system is being rolled out right now, live.</strong> Today, a customer's scheduled visit is a row in the old <span class="mono">appointments</span> table. A brand-new system (<span class="mono">schedules</span>, <span class="mono">availability</span>, <span class="mono">out_of_office</span>, <span class="mono">event_types</span>, and a <span class="mono">bookings</span> table) already exists side by side with it, and <span class="mono">bookings</span> already links directly to a Lead — a real improvement, since the old table only ever connected to a Lead indirectly. The active engineering backlog is entirely focused on finishing that cutover: moving all the reads and writes onto the new system, then retiring the old one for good. <strong>For migration purposes: expect the source-of-truth table for "when is this customer's appointment" to change out from under you</strong> during this rollout — anything built against the old <span class="mono">appointments</span> table today should plan for a switch to <span class="mono">bookings</span>. The third model (dealer/BDM visit scheduling, a completely separate business process) is unrelated to any of this and isn't going anywhere. The fourth is already being removed and appears to be what the new system replaced.</p>
+      </div>
+      <p>None of the four scheduling models connect to Quotes or Orders directly. And the link from a Work Order to its scheduled visit still points at the old <span class="mono">appointments</span> table, not the new <span class="mono">bookings</span> table yet — that hasn't been switched over.</p>
+    </section>
+
+    <section id="quotes">
+      <span class="eyebrow">05 &middot; dealer_quote schema, inside services/order-status</span>
+      <h2>Quotes</h2>
+      <p class="dek">Quotes used to be its own separate system. It was recently absorbed into the same database as Orders — and this domain is missing a specific piece of information that most of the RLN backlog is waiting on.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    quotes {
+        uuid id PK
+        uuid dealer_id FK
+        uuid lead_id FK
+        bool is_dc_sourced "Direct Connect bridge, exists"
+        text status "IN_PROGRESS..ORDER_SUBMITTED"
+        text note "lives inside the Orders system's database"
+        text sidemark "already exists"
+        text po_reference "already exists"
+        uuid partner_account_id FK "🆕 NEW — the root RLN gap, needed to price/submit under the partner"
+        text sales_brand "🆕 NEW"
+        text pricing_tier "🆕 NEW — proposed for RDIS-151, Max/Mid/Min"
+    }
+    quote_line_items {
+        uuid id PK
+        uuid quote_id FK
+        text product_id FK "product catalog"
+        uuid vendor_configuration_id FK "dealers domain"
+        uuid parent_line_item_id FK "self, bill-of-materials breakdown"
+    }
+    custom_product_line {
+        uuid quote_id FK "🆕 NEW TABLE — proposed for RDIS-155/377/392"
+        uuid order_id FK "🆕 NEW — nullable, set once the quote is submitted"
+        text sku_code "🆕 NEW"
+        text product_description "🆕 NEW"
+        text operating_system "🆕 NEW"
+        text mount_type "🆕 NEW"
+        decimal width "🆕 NEW"
+        decimal height "🆕 NEW"
+        text location "🆕 NEW"
+        decimal rln_cost "🆕 NEW"
+        decimal customer_price "🆕 NEW"
+        text line_status "🆕 NEW"
+        text delivery_status "🆕 NEW — covers what Salesforce calls vendor confirmation"
+        text tracking_number "🆕 NEW"
+    }
+    install_quotes { uuid id PK
+        uuid quote_id FK
+        text work_order_id FK }
+    pricing_groups { uuid id PK
+        uuid dealer_id FK }
+    lead_snapshots { uuid id PK
+        uuid consumer_id FK
+        text note "synced copy of the lead" }
+    quote_signatures { uuid id PK
+        uuid quote_id FK }
+    nexus_submissions {
+        uuid id PK
+        text quote_number "the human-facing quote number"
+        text status "PENDING_SUBMISSION..SENT_TO_SAP"
+        timestamp submitted_at "the moment a quote becomes an order"
+        text note "a separate pricing/submission system"
+    }
+
+    quotes ||--o{ quote_line_items : "quote_id"
+    quotes ||--o{ install_quotes : "quote_id"
+    quotes }o--|| pricing_groups : "price_group_id"
+    quotes }o--|| lead_snapshots : "synced copy of the originating lead"
+    quotes ||--o{ quote_signatures : "quote_id"
+    quotes ||..o{ custom_product_line : "🆕 NEW"
+    quotes ||..o{ nexus_submissions : "matched by quote number, the real quote-to-order seam"
+</pre>
+      </div>
+      <div class="diagram-caption">also: quote_deposits, quote_promotions, quote_custom_charges_and_discounts, quote_fee_settings/expiration_settings/notifications/pdfs/proposal_emails, sell_price_rules/service_price_rules/oversize_fee_rules/price_group_exclusions, dealer_quote_settings, per-dealer configurable settings including the flat tax rate, measurement_import_sessions/measurement_results/quote_line_item_snapshots, consumer_snapshots/consumer_location_snapshots, order_submissions. A generic <span class="mono">dealer_quote_audits</span> table (id/message_id/message JSONB/user/event_name) already exists too, mirroring the leads activity log described in the Leads section below.</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Quotes: this is where a partner-sourced lead's identity currently gets lost.</strong> Leads knows exactly which retail partner and store a lead came from. Nothing on this table remembers that once a Quote gets created — there's no column here for "this quote must be priced and eventually submitted under the partner's own account, not the dealer's." That's still the one confirmed gap here. <span class="mono">sidemark</span> and a PO-reference field already exist on this table (corrected after review — an earlier pass here wrongly called them new).</p>
+      </div>
+      <p>Two things worth knowing about this domain's history: the standalone quote system it used to be has been fully retired and folded into the same database as Orders, so any documentation describing them as separate systems is out of date. And a sibling piece, the tool that generates a measure/install quote, doesn't have its own tables at all — it just orchestrates across Work Orders, this domain, and one other pricing system. Separately, Sales has its own "opportunities" concept that sounds related but isn't — that's a completely different, dealer-growth-focused idea with no connection to a customer Quote.</p>
+    </section>
+
+    <section id="orders">
+      <span class="eyebrow">06 &middot; services/order-status</span>
+      <h2>Orders</h2>
+      <p class="dek">The order/line-item core is detailed — status tracking, shipment tracking, returns, which factory or warehouse it ships from. What's missing entirely is any concept of a financial ledger: nothing here tracks cost, commission, or "has this been posted to the books yet."</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    orders {
+        int id PK
+        text erp_order_id "nullable = placeholder until SAP confirms"
+        uuid brite_dealer_id FK
+        uuid brite_consumer_id FK
+        uuid brite_lead_id FK
+        uuid brite_quote_id FK
+        int parent_order_id FK "self, RETURN/REPAIR lineage"
+        text order_type
+        uuid partner_account_id FK "🆕 NEW — same root RLN gap, one step downstream from Quotes"
+        bool held "🆕 NEW — proposed for RDIS-394, also covers backorder hold state"
+        timestamp payment_checked_at "🆕 NEW"
+        timestamp posted_at "🆕 NEW — proposed for RDIS-192, no financial-ledger flag exists"
+    }
+    line_items {
+        int id PK
+        int order_id FK
+        text sku
+        decimal line_discount "exists"
+        decimal net_line_value "exists"
+        decimal taxes "exists"
+    }
+    financial_postings {
+        uuid order_id FK "🆕 NEW TABLE — proposed for RDIS-186, no financial ledger exists at all today"
+        decimal cost_amount "🆕 NEW"
+        decimal commission_amount "🆕 NEW"
+    }
+    configurations { bigint id PK
+        int line_item_id FK }
+    return_labels { text id PK
+        int order_id FK }
+    plants { int id PK
+        text plant_id }
+    erp_customers {
+        uuid id PK
+        text customer_id "the DEALER's own account with Hunter Douglas"
+        text note "a mirror of SAP data, not the shopper"
+    }
+    order_chat { uuid id PK
+        int order_id FK }
+
+    orders ||--o{ line_items : "order_id"
+    line_items ||--o{ configurations : "line_item_id"
+    orders ||--o{ return_labels : "order_id"
+    orders }o--|| plants : "which factory/warehouse fulfills it"
+    orders }o..|| erp_customers : "the dealer's own HD account, not the end shopper"
+    orders ||--o{ order_chat : "order_id"
+    orders ||..o{ financial_postings : "🆕 NEW"
+</pre>
+      </div>
+      <div class="diagram-caption">also: shipment_tracking_status, pending_narvar_events, return_label_generations, update_status_jobs, order_chat_attachments(+downloads). The dealer's-own-account mirror also has sales-area, partner, and credit-card detail tables. Three sibling systems for live product catalog, pricing, and configuration exist but keep <strong>no data of their own</strong> — they're a live pass-through to SAP every time, with only a short-lived cache in front.</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Orders: the same missing piece as Quotes, one step further down the line.</strong> By the time a Quote becomes an Order, whatever partner identity it had is already gone — there's no column here either for "this order needs to post under the retail partner's SAP account, not the dealer's own." <strong>Correction from an earlier pass:</strong> backorder handling and vendor-confirmation tracking do <em>not</em> need their own tables — the plan is to cover both through a <span class="mono">held</span> flag directly on <span class="mono">orders</span> plus the new custom-product-line record (see Quotes), the same way Salesforce's separate vendor-confirmation object gets replaced once custom products live on the order itself. What's still a real, unaddressed gap regardless of RLN: no per-line-item tax breakdown, and critically for a large chunk of the active engineering backlog — <strong>no financial ledger at all.</strong> No flag for "has this posted to the books," no cost, commission, or royalty tracking, nothing resembling an invoice record. See the <a href="#gap-financial">Financial ledger</a> section below.</p>
+      </div>
+    </section>
+
+    <section id="workorders">
+      <span class="eyebrow">07 &middot; install-work-order + installers</span>
+      <h2>Work Orders</h2>
+      <p class="dek">This is where an Order becomes an actual scheduled visit and an installer showing up at someone's home. It's the most detailed domain by table count, and also the one with the most duplication — three separate tables each independently try to answer "who is assigned to this job," without referencing one another.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    work_orders {
+        uuid id PK
+        uuid consumer_id FK "not null"
+        uuid dealer_id FK "not null"
+        uuid lead_id FK "nullable"
+        uuid service_type_id FK
+        uuid status_id FK
+    }
+    work_order_line_items { uuid id PK
+        uuid work_order_id FK
+        text product_quote_line_id FK "links back to the Quote line item" }
+    line_item_measurements { uuid id PK
+        uuid line_item_id FK
+        bool is_null_entry "deliberate-null marker" }
+    work_order_statuses { uuid id PK }
+    work_order_relations {
+        uuid work_order_id FK
+        uuid related_work_order_id FK
+        text relation_type "e.g. this job is a follow-up to that one"
+    }
+    work_order_events { uuid id PK
+        uuid work_order_id FK
+        uuid scheduling_event_id FK "the visit, still on the old scheduling system" }
+    work_order_assignment_details {
+        uuid work_order_id FK "who's assigned, version 1"
+        uuid installer_id FK
+        uuid install_company_id FK
+    }
+    assignments {
+        uuid id PK
+        uuid work_order_id FK "who's assigned, version 2"
+        uuid install_company_id FK
+        uuid reassigned_from_id FK "self"
+    }
+    install_company { uuid id PK
+        text insurance_expires_at "🆕 NEW — proposed for RDIS-482, no compliance schema exists today" }
+    installer { uuid id PK
+        uuid install_company_id FK "nullable"
+        text license_number "🆕 NEW"
+        text background_check_status "🆕 NEW — proposed for RDIS-482" }
+    install_company_skill { uuid install_company_id FK
+        uuid brand_id FK
+        uuid product_skill_id FK }
+    installer_certifications { uuid installer_id FK
+        uuid certification_id FK }
+    installer_allocations {
+        uuid id PK
+        uuid work_order_id FK "who's assigned, version 3, lives in a different system"
+        uuid installer_id FK
+    }
+
+    work_orders ||--o{ work_order_line_items : "work_order_id"
+    work_order_line_items ||--o{ line_item_measurements : "line_item_id"
+    work_orders }o--|| work_order_statuses : "status_id"
+    work_orders ||--o{ work_order_relations : "work_order_id"
+    work_orders ||--o{ work_order_events : "work_order_id"
+    work_orders ||--|| work_order_assignment_details : "work_order_id"
+    work_orders ||--o{ assignments : "work_order_id"
+    install_company ||--o{ installer : "install_company_id"
+    install_company ||--o{ install_company_skill : "install_company_id"
+    installer ||--o{ installer_certifications : "installer_id"
+    work_orders ||..o{ installer_allocations : "a third, separate record of who's assigned"
+</pre>
+      </div>
+      <div class="diagram-caption">also: work_order_delay_reasons, work_order_historys, work_order_constraints, work_order_shipping_address, work_order_files/outcome_line_files/chat_attachments, work_order_skills, work_order_labels(+rules+associations), work_order_ownership_transfer_tracking, delivery-status tracking, external order links, the full action/approval workflow tables, work_order_flag, the quality-outcome and signature tables, the full service-charge pricing-rules engine for Service Call jobs, manual_surcharge_entry, work_order_line_sku, work_order_chat(+downloads). Installers also has: installer types, brands, product skills, certifications, coverage-area/zip-code tables, company and installer addresses, and dealer-specific installer block/prefer preferences.</div>
+
+      <div class="callout full">
+        <p><strong>RLN impact on Work Orders: the same missing partner identity, and a real ask this domain can't satisfy yet.</strong> By the time a job reaches this stage, there's no trace left of which retail partner originally sent the lead — same gap as Quotes and Orders, one step further downstream. Separately, there's a specific active ask (partner contacts being teamed to stores, gated on a background check having been completed) that this domain has no way to support today: neither an installer nor an installer company has a place to record a license, insurance, or background-check status anywhere. That would need to be built new.</p>
+      </div>
+      <div class="callout callout--warn full">
+        <p><strong>Two corrections from an earlier pass.</strong> Installer rate sheets aren't going to be maintained in Brite at all — that earlier proposed table has been removed; treat <ticket>RDIS-160</ticket> as out of scope for this schema. And warranty coverage on a line item is already representable through the existing quality/service-charge tables (<span class="mono">warranty_status</span>, <span class="mono">quality_responsibilities</span>, the service-charge rule engine) — a dedicated <span class="mono">warranty_covered</span> column was redundant and has been removed. Note for accuracy: <span class="mono">warranty_status</span> itself isn't referenced by a foreign key from any line-item table in the migrations checked, so if there's a specific column tying a line item to its warranty determination, it wasn't found here — worth pointing out directly if this still needs tightening.</p>
+      </div>
+      <p>Also worth knowing if you're building anything on top of "who is assigned to this job": there are three separate, disconnected answers to that question living in this domain today (shown as versions 1, 2, and 3 above), the leftover result of merging two formerly-separate systems into one without fully consolidating this particular piece. None of the three currently reference each other.</p>
+    </section>
+
+    <section id="master-map">
+      <span class="eyebrow">Everything, together</span>
+      <h2>Master entity map</h2>
+      <p class="dek">All seven domains from above, merged into one diagram — every relationship-bearing table (63 of them) and every connection, intra-domain and cross-domain, in a single map. This is the same content as the standalone <span class="mono">.mmd</span> file built for Miro import; open it full-screen to actually read it.</p>
+      <div class="diagram-wrap full">
+<pre class="mermaid">
+erDiagram
+    dealers {
+        uuid id PK
+        uuid parent_id FK "self, hierarchy"
+    }
+    dealer_stores {
+        uuid id PK
+        uuid dealer_id FK
+        text salesforce_account_id "actually holds SAP KUNNR"
+    }
+    store_audit {
+        uuid id PK
+        uuid dealer_store_id FK "nullable, no live constraint"
+        uuid owning_dealer_id FK
+        text kunnr "SAP account number"
+    }
+    dealer_users {
+        uuid id PK
+        text zitadel_id
+    }
+    dealer_user_associations {
+        uuid dealer_id FK
+        uuid user_id FK
+    }
+    dealer_vendor_configurations {
+        uuid id PK
+        uuid dealer_id FK
+        uuid vendor_id FK
+    }
+    erp_account_metadata {
+        uuid id PK
+        text account_number "SAP KNA1 = dealer's own Sold-To"
+        uuid dealer_id FK "nullable, no constraint"
+    }
+    partner_dealer_store_config {
+        uuid dealer_id PK
+        text store_number "unique, RLN partner store #"
+        text service_scope "🆕 NEW — full/warranty_only/vdp_only, mutually exclusive by business rule"
+        text status "🆕 NEW — active/inactive/never_been_active/deactivated"
+        boolean dealer_only_store "🆕 NEW"
+        date hdrln_date "🆕 NEW — store go-live date"
+        text vendor_account_number "🆕 NEW"
+        text ap_vendor_code "🆕 NEW — installer payment"
+        boolean pre_qual "🆕 NEW"
+        boolean no_installer "🆕 NEW"
+        text special_store_category "🆕 NEW — free text, channel-specific catch-all"
+        text channel_region "🆕 NEW"
+        int district "🆕 NEW"
+        int byo "🆕 NEW — HD channel, meaning TBD"
+        text channel_dsm "🆕 NEW — channel's own contact"
+        text rln_sales_manager "🆕 NEW — HD's own contact, distinct from dealer-level bdm"
+        text regional_sales_manager "🆕 NEW"
+        text channel_rsm "🆕 NEW"
+        text area_sales_manager "🆕 NEW"
+    }
+    partner_store_dealer_links {
+        uuid main_account_dealer_id FK
+        uuid partner_dealer_id FK
+    }
+    partner_dealer_status {
+        uuid dealer_id PK
+        text rln_vendor_number "🆕 NEW — for RLN payment, RDIS-63"
+        text onboarding_status "🆕 NEW — onboarding/setup_complete/no_longer_participating/declined_to_participate"
+        text rln_market "🆕 NEW — value meaning TBD"
+        date hdrln_date "🆕 NEW — dealer go-live date"
+        text bdm "🆕 NEW — distinct from store-level rln_sales_manager"
+    }
+    partner_user_skills {
+        uuid user_id FK
+        uuid dealer_id FK
+        text skill_code "RLN itself is a skill code, plus product skills"
+    }
+    partner_user_location {
+        uuid user_id PK
+        double latitude
+        double longitude
+        int service_radius_miles "default 35"
+    }
+    partner_user_assignment_config {
+        uuid user_id PK
+        bool active "false = paused, excluded from resolver"
+        int assignment_priority "1 = primary"
+    }
+    partner_store_user_links {
+        uuid store_id FK "MAIN_ACCOUNT dealer (partner store)"
+        uuid user_id FK "the house-account designer"
+        uuid dealer_id FK "house account the user sits under"
+    }
+    pending_ownership_transfer {
+        uuid id PK
+        text predecessor_account
+        text successor_account
+    }
+
+    dealers ||--o{ dealers : "parent_id (org hierarchy)"
+    dealers ||--o{ dealer_stores : "dealer_id"
+    dealer_stores ||--o| store_audit : "dealer_store_id (legacy)"
+    dealers ||--o{ dealer_user_associations : "dealer_id"
+    dealer_users ||--o{ dealer_user_associations : "user_id"
+    dealers ||--o{ dealer_vendor_configurations : "dealer_id"
+    dealers ||..o{ erp_account_metadata : "dealer's own SAP account info (synced copy)"
+    dealers ||--|| partner_dealer_store_config : "which dealer owns this retail-partner store number"
+    dealers ||--o{ partner_store_dealer_links : "which dealers are teamed to which stores"
+    dealers ||--|| partner_dealer_status : "dealer-level RLN account record — vendor #, onboarding status, market"
+    dealer_users ||--o{ partner_user_skills : "RLN product/brand skills this user holds"
+    dealer_users ||--|| partner_user_location : "lat/long + service radius"
+    dealer_users ||--|| partner_user_assignment_config : "active flag + assignment priority"
+    dealers ||--o{ partner_store_user_links : "store_id (partner store) and dealer_id (house account)"
+    dealer_users ||--o{ partner_store_user_links : "user_id (designer teaming)"
+
+    dealer_commission_ledger {
+        uuid order_id FK "🆕 NEW TABLE — proposed for RDIS-193/324/372, doesn't exist yet"
+        uuid dealer_id FK "which dealer gets paid"
+        decimal commission_amount "🆕 NEW"
+        timestamp paid_at "🆕 NEW"
+    }
+    dealers ||..o{ dealer_commission_ledger : "🆕 NEW — no payable commission record exists today"
+
+    consumers {
+        uuid id PK
+        text entity_type "contact (default) | account"
+        uuid dealer_id FK
+        uuid owner_user_id FK "roles/Zitadel"
+    }
+    consumer_locations {
+        uuid id PK
+        uuid consumer_id FK
+        text location_type
+        bool is_primary
+    }
+    consumer_contacts {
+        uuid id PK
+        uuid consumer_id FK "the Account"
+        uuid contact_consumer_id FK "the Contact"
+        text relationship_type
+    }
+    consumer_dealers {
+        uuid id PK
+        uuid consumer_id FK
+        uuid dealer_id FK
+    }
+    emails { uuid id PK
+        uuid consumer_id FK }
+    phone_numbers { uuid id PK
+        uuid consumer_id FK }
+    rooms { uuid id PK
+        uuid consumer_location_id FK }
+    consumer_orders {
+        uuid consumer_id PK
+        text brite_order_id PK
+    }
+
+    consumers ||--o{ consumer_locations : "consumer_id"
+    consumers ||--o{ consumer_contacts : "consumer_id (Account side)"
+    consumers ||--o{ consumer_contacts : "contact_consumer_id (Contact side)"
+    consumers ||--o{ consumer_dealers : "consumer_id (legacy M:N)"
+    consumers ||--o{ emails : "consumer_id"
+    consumers ||--o{ phone_numbers : "consumer_id"
+    consumer_locations ||--o{ rooms : "consumer_location_id"
+    consumers ||--o{ consumer_orders : "consumer_id (HD/Levolor direct-to-consumer only)"
+
+    leads {
+        uuid id PK
+        uuid dealer_id FK
+        uuid consumer_id FK "legacy"
+        uuid referral_store_dealer_id FK "RLN, immutable, already exists"
+        text partner_channel "RLN, e.g. THD/JCP/COSTCO, already exists"
+        text referral_store_number "RLN, already exists"
+        int status_id FK
+        decimal total_installation_cost "🆕 NEW — proposed for RDIS-460"
+    }
+    lead_status {
+        int id PK
+        int next_id FK "self"
+        int previous_id FK "self"
+    }
+    leads_audits {
+        uuid id PK
+        text message_id "correlates to the source Kafka event"
+        jsonb message "raw event payload; lead identity lives in here, not a column"
+        text event_name
+        text event_log_type
+        text from_stage "already exists"
+        text to_stage "already exists"
+        text from_substage "already exists"
+        text to_substage "already exists"
+        text user_email
+    }
+    leads_consumers {
+        uuid lead_id FK
+        uuid consumer_id FK
+        text relationship_type "incl. LINKED_ACCOUNT"
+    }
+    lead_events {
+        uuid id PK
+        uuid lead_id FK
+        uuid scheduling_event_id FK "legacy appointments.id"
+        uuid dealer_id FK
+    }
+    campaigns { uuid id PK
+        uuid dealer_id FK }
+    partner_channel_mapping {
+        uuid id PK
+        text channel_code
+        text parent_account
+        text sales_org
+        text distribution_channel
+    }
+    partner_config { text partner PK }
+    integration_log { uuid id PK
+        text partner }
+    partner_idempotency_keys {
+        text partner PK
+        text idempotency_key PK
+        uuid lead_id FK
+    }
+    partner_channel_profile {
+        text channel_code PK "🆕 NEW TABLE — proposed, RDIS-410"
+        text country PK "🆕 NEW — composite key with channel_code"
+        text display_name "🆕 NEW"
+        text phone "🆕 NEW"
+        text email "🆕 NEW"
+        text logo_url "🆕 NEW"
+        text website "🆕 NEW — no Salesforce source, populated by hand"
+    }
+    dealer_quote_snapshots { text lead_id PK
+        text quote_id }
+    order_status_snapshots { text order_id PK
+        text lead_id }
+
+    leads ||--o{ lead_events : "lead_id"
+    lead_status ||--o{ leads : "status_id"
+    leads ||..o{ leads_audits : "already exists — lead_id is embedded in the message JSONB, not a column"
+    leads ||--o{ leads_consumers : "lead_id"
+    leads ||..o{ dealer_quote_snapshots : "synced copy of this lead's quote(s)"
+    leads ||..o{ order_status_snapshots : "synced copy of this lead's order(s), drives lead status"
+    leads }o..|| campaigns : "which marketing campaign, if any"
+    leads }o..o{ partner_channel_mapping : "look up SAP pricing context for this partner"
+    partner_idempotency_keys }o--o| leads : "lead_id, ingress dedup"
+    partner_channel_profile ||..o{ partner_channel_mapping : "shared channel_code — 🆕 NEW join, not yet wired"
+    partner_dealer_store_config ||..o{ partner_channel_profile : "channel_code+country — 🆕 NEW FK, not yet wired (cross-service, Dealers to Leads)"
+
+    appointments {
+        uuid id PK
+        uuid consumer_id FK "nullable"
+        uuid dealer_id FK "nullable, old scheduling system"
+        text status "SCHEDULED..CANCELED"
+    }
+    bookings {
+        uuid id PK
+        uuid lead_id FK "direct, real link; new scheduling system"
+        uuid dealer_id FK
+        uuid external_appointment_id FK "bridge to the old scheduling system"
+        text status "tentative..no_show"
+        text cancellation_reason "🆕 NEW — proposed for RLN-127, only a bare status exists today"
+    }
+    schedules { uuid id PK
+        uuid dealer_user_id FK }
+    event_types { uuid id PK
+        text slug }
+    sales_appointments {
+        uuid id PK
+        uuid related_dealer_account_uuid FK "sales-team dealer visits, unrelated model"
+        text customer_name "free text, no link to a real customer"
+    }
+    booking_tenant {
+        uuid id PK
+        uuid account_id FK "an org/tenant, not a customer; being retired"
+        text external_client_id "unvalidated free text"
+    }
+    calendar_oauth_tokens { uuid id PK
+        uuid dealer_id FK }
+
+    bookings }o--|| schedules : "dealer_user_id"
+    bookings }o--|| event_types : "event_type_id"
+    bookings }o..o| appointments : "bridge to the old scheduling system"
+    calendar_oauth_tokens ||..o{ appointments : "personal Google Calendar sync"
+
+    quotes {
+        uuid id PK
+        uuid dealer_id FK
+        uuid lead_id FK
+        bool is_dc_sourced "Direct Connect bridge, exists"
+        text status "IN_PROGRESS..ORDER_SUBMITTED"
+        text note "lives inside the Orders system's database"
+        text sidemark "already exists"
+        text po_reference "already exists"
+        uuid partner_account_id FK "🆕 NEW — the root RLN gap, needed to price/submit under the partner"
+        text sales_brand "🆕 NEW"
+        text pricing_tier "🆕 NEW — proposed for RDIS-151, Max/Mid/Min"
+    }
+    quote_line_items {
+        uuid id PK
+        uuid quote_id FK
+        text product_id FK "product catalog"
+        uuid vendor_configuration_id FK "dealers domain"
+        uuid parent_line_item_id FK "self, bill-of-materials breakdown"
+    }
+    custom_product_line {
+        uuid quote_id FK "🆕 NEW TABLE — proposed for RDIS-155/377/392"
+        uuid order_id FK "🆕 NEW — nullable, set once the quote is submitted"
+        text sku_code "🆕 NEW"
+        text product_description "🆕 NEW"
+        text operating_system "🆕 NEW"
+        text mount_type "🆕 NEW"
+        decimal width "🆕 NEW"
+        decimal height "🆕 NEW"
+        text location "🆕 NEW"
+        decimal rln_cost "🆕 NEW"
+        decimal customer_price "🆕 NEW"
+        text line_status "🆕 NEW"
+        text delivery_status "🆕 NEW — covers what Salesforce calls vendor confirmation"
+        text tracking_number "🆕 NEW"
+    }
+    install_quotes { uuid id PK
+        uuid quote_id FK
+        text work_order_id FK }
+    pricing_groups { uuid id PK
+        uuid dealer_id FK }
+    lead_snapshots { uuid id PK
+        uuid consumer_id FK
+        text note "synced copy of the lead" }
+    quote_signatures { uuid id PK
+        uuid quote_id FK }
+    nexus_submissions {
+        uuid id PK
+        text quote_number "the human-facing quote number"
+        text status "PENDING_SUBMISSION..SENT_TO_SAP"
+        timestamp submitted_at "the moment a quote becomes an order"
+        text note "a separate pricing/submission system"
+    }
+
+    quotes ||--o{ quote_line_items : "quote_id"
+    quotes ||--o{ install_quotes : "quote_id"
+    quotes }o--|| pricing_groups : "price_group_id"
+    quotes }o--|| lead_snapshots : "synced copy of the originating lead"
+    quotes ||--o{ quote_signatures : "quote_id"
+    quotes ||..o{ custom_product_line : "🆕 NEW"
+    quotes ||..o{ nexus_submissions : "matched by quote number, the real quote-to-order seam"
+
+    orders {
+        int id PK
+        text erp_order_id "nullable = placeholder until SAP confirms"
+        uuid brite_dealer_id FK
+        uuid brite_consumer_id FK
+        uuid brite_lead_id FK
+        uuid brite_quote_id FK
+        int parent_order_id FK "self, RETURN/REPAIR lineage"
+        text order_type
+        uuid partner_account_id FK "🆕 NEW — same root RLN gap, one step downstream from Quotes"
+        bool held "🆕 NEW — proposed for RDIS-394, also covers backorder hold state"
+        timestamp payment_checked_at "🆕 NEW"
+        timestamp posted_at "🆕 NEW — proposed for RDIS-192, no financial-ledger flag exists"
+    }
+    line_items {
+        int id PK
+        int order_id FK
+        text sku
+        decimal line_discount "exists"
+        decimal net_line_value "exists"
+        decimal taxes "exists"
+    }
+    financial_postings {
+        uuid order_id FK "🆕 NEW TABLE — proposed for RDIS-186, no financial ledger exists at all today"
+        decimal cost_amount "🆕 NEW"
+        decimal commission_amount "🆕 NEW"
+    }
+    configurations { bigint id PK
+        int line_item_id FK }
+    return_labels { text id PK
+        int order_id FK }
+    plants { int id PK
+        text plant_id }
+    erp_customers {
+        uuid id PK
+        text customer_id "the DEALER's own account with Hunter Douglas"
+        text note "a mirror of SAP data, not the shopper"
+    }
+    order_chat { uuid id PK
+        int order_id FK }
+
+    orders ||--o{ line_items : "order_id"
+    line_items ||--o{ configurations : "line_item_id"
+    orders ||--o{ return_labels : "order_id"
+    orders }o--|| plants : "which factory/warehouse fulfills it"
+    orders }o..|| erp_customers : "the dealer's own HD account, not the end shopper"
+    orders ||--o{ order_chat : "order_id"
+    orders ||..o{ financial_postings : "🆕 NEW"
+    orders ||..o{ custom_product_line : "🆕 NEW — set once the quote is submitted"
+
+    work_orders {
+        uuid id PK
+        uuid consumer_id FK "not null"
+        uuid dealer_id FK "not null"
+        uuid lead_id FK "nullable"
+        uuid service_type_id FK
+        uuid status_id FK
+    }
+    work_order_line_items { uuid id PK
+        uuid work_order_id FK
+        text product_quote_line_id FK "links back to the Quote line item" }
+    line_item_measurements { uuid id PK
+        uuid line_item_id FK
+        bool is_null_entry "deliberate-null marker" }
+    work_order_statuses { uuid id PK }
+    work_order_relations {
+        uuid work_order_id FK
+        uuid related_work_order_id FK
+        text relation_type "e.g. this job is a follow-up to that one"
+    }
+    work_order_events { uuid id PK
+        uuid work_order_id FK
+        uuid scheduling_event_id FK "the visit, still on the old scheduling system" }
+    work_order_assignment_details {
+        uuid work_order_id FK "who's assigned, version 1"
+        uuid installer_id FK
+        uuid install_company_id FK
+    }
+    assignments {
+        uuid id PK
+        uuid work_order_id FK "who's assigned, version 2"
+        uuid install_company_id FK
+        uuid reassigned_from_id FK "self"
+    }
+    install_company { uuid id PK
+        text insurance_expires_at "🆕 NEW — proposed for RDIS-482, no compliance schema exists today" }
+    installer { uuid id PK
+        uuid install_company_id FK "nullable"
+        text license_number "🆕 NEW"
+        text background_check_status "🆕 NEW — proposed for RDIS-482" }
+    install_company_skill { uuid install_company_id FK
+        uuid brand_id FK
+        uuid product_skill_id FK }
+    installer_certifications { uuid installer_id FK
+        uuid certification_id FK }
+    installer_allocations {
+        uuid id PK
+        uuid work_order_id FK "who's assigned, version 3, lives in a different system"
+        uuid installer_id FK
+    }
+
+    work_orders ||--o{ work_order_line_items : "work_order_id"
+    work_order_line_items ||--o{ line_item_measurements : "line_item_id"
+    work_orders }o--|| work_order_statuses : "status_id"
+    work_orders ||--o{ work_order_relations : "work_order_id"
+    work_orders ||--o{ work_order_events : "work_order_id"
+    work_orders ||--|| work_order_assignment_details : "work_order_id"
+    work_orders ||--o{ assignments : "work_order_id"
+    install_company ||--o{ installer : "install_company_id"
+    install_company ||--o{ install_company_skill : "install_company_id"
+    installer ||--o{ installer_certifications : "installer_id"
+    work_orders ||..o{ installer_allocations : "a third, separate record of who's assigned"
+
+    dealers ||--o{ consumers : "consumer.dealer_id"
+    dealers ||--o{ leads : "leads.dealer_id"
+    consumers ||--o{ leads_consumers : "consumer_id (linked customer account)"
+    leads ||..o{ appointments : "the lead's scheduled visit (old system)"
+    leads ||--o{ bookings : "the lead's scheduled visit (new system)"
+    leads ||..o{ quotes : "synced copy of the lead's quote(s)"
+    leads ||..o{ orders : "synced copy of the lead's order(s)"
+    dealers ||--o{ quotes : "which dealer, priced under which vendor setup"
+    quotes ||..o{ work_orders : "which measure/install jobs came from this quote"
+    quotes ||..o{ orders : "quote submitted as one or more orders"
+    dealers ||--o{ orders : "owning dealer"
+    orders ||..o{ dealer_commission_ledger : "🆕 NEW — which order the commission was earned on"
+    orders ||..o{ custom_product_line : "🆕 NEW — set once the quote is submitted"
+    consumers ||--o{ orders : "buyer"
+    orders ||..o{ work_orders : "which install/service jobs belong to this order"
+    consumers ||--o{ work_orders : "who the job is for (required)"
+    dealers ||--o{ work_orders : "which dealer owns the job (required)"
+    work_orders ||..o{ appointments : "the job's scheduled visit (old system, not yet moved)"
+</pre>
+      </div>
+      <p>Left out on purpose: pure lookup, audit, and internal event-log tables (roughly 90 more across the full schema) that carry no meaningful relationship of their own — including them would roughly triple the node count for no added understanding. The standalone <span class="mono">.mmd</span> file sent alongside this artifact is this exact diagram, ready to paste into Miro or any other Mermaid-reading tool.</p>
+    </section>
+
+    <hr class="rule" />
+
+    <section id="gap-analysis-intro">
+      <span class="eyebrow">Now the ask that matters</span>
+      <h2>RLN ticket gap analysis</h2>
+      <p class="dek">All 248 currently active (non-Done, non-Cancelled, non-Duplicate) tickets across the <strong>RLN-Discovery</strong> and <strong>RLN-Delivery</strong> Linear teams were reviewed against the schema above. They cluster into eight themes.</p>
+      <div class="domain-grid full">
+        <a class="domain-card" href="#gap-identity"><div class="n">29 tickets</div><div class="t">Partner identity on Quote/Order/WO</div><div class="s">The single largest confirmed gap</div></a>
+        <a class="domain-card" href="#gap-scheduling"><div class="n">22 tickets</div><div class="t">Scheduling engine cutover</div><div class="s">Schema exists, wiring is the work</div></a>
+        <a class="domain-card" href="#gap-dc"><div class="n">12 tickets</div><div class="t">Direct Connect quote bridge</div><div class="s">Mostly logic, one field gap</div></a>
+        <a class="domain-card" href="#gap-financial"><div class="n">16 tickets</div><div class="t">Financial ledger / Epicor posting</div><div class="s">Fully open — nothing exists yet</div></a>
+        <a class="domain-card" href="#gap-docs"><div class="n">23 tickets</div><div class="t">Documents &amp; signatures</div><div class="s">A whole service we'd missed is real; completion-doc rules aren't</div></a>
+        <a class="domain-card" href="#gap-quoting"><div class="n">24 tickets</div><div class="t">Quote authoring &amp; custom products</div><div class="s">Custom-product persistence is missing; Centah is fully unbuilt</div></a>
+        <a class="domain-card" href="#gap-cs"><div class="n">65 tickets</div><div class="t">Customer Service &amp; service detour</div><div class="s">Reselection workflow doesn't exist</div></a>
+        <a class="domain-card" href="#gap-misc"><div class="n">57 tickets</div><div class="t">Everything else</div><div class="s">Mostly process/integration, not schema</div></a>
+      </div>
+    </section>
+
+    <section id="gap-identity">
+      <span class="eyebrow">Cluster 1 of 8 &middot; 29 tickets</span>
+      <h2>Partner identity on Quote, Order &amp; Work Order</h2>
+      <p>Leads already carries RLN identity (<span class="mono">partner_channel</span>, <span class="mono">referral_store_number</span>, <span class="mono">referral_store_dealer_id</span>) and a seeded <span class="mono">partner_channel_mapping</span> reference table. <strong>None of that identity survives past the Lead.</strong> The moment a partner-sourced lead becomes a Quote, then an Order, then a Work Order, there is no column anywhere to carry "this must price and submit under the THD/JCP/Costco Canada SAP sales-area, not the servicing dealer's own account." That single absence is what roughly two dozen tickets — spanning three different Linear "projects" — are all converging on from different angles.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <caption>Verified 2026-08-05 by direct grep of dealer_quote.quotes, order-status.orders and install-work-order.work_orders for partner_channel / referral_store / is_rln_sourced — zero matches in all three.</caption>
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Table.field / new table</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RDIS-463</ticket></td><td><span class="badge badge--table">New field</span></td><td class="mono">dealer_quote.quotes</td><td>Explicitly titled "Denormalize RLN partner identity onto Quote + immutability guard" — this is the ticket that names the exact gap.</td></tr>
+          <tr><td><ticket>RDIS-472</ticket>, <ticket>RDIS-473</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">orders.partner_channel</td><td>"Carry the servicing dealer forward from Quote onto Order alongside the partner SAP context" — Order needs the same identity Quote is about to get.</td></tr>
+          <tr><td><ticket>RDIS-464</ticket>, <ticket>RDIS-474</ticket></td><td><span class="badge badge--ok">Reference data exists</span></td><td class="mono">leads.partner_channel_mapping</td><td>The lookup table (channel &rarr; sales_org/distribution_channel/price_group) already exists and is seeded — these tickets need to consume it from Quote/Order, not build it.</td></tr>
+          <tr><td><ticket>RDIS-469</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">quotes / orders / work_orders</td><td>The spike ticket itself — "[SPIKE] Decide how the RLN servicing dealer is carried onto Quote/Order/WorkOrder" is asking the exact question this row answers.</td></tr>
+          <tr><td><ticket>RDIS-150</ticket>, <ticket>RDIS-164</ticket>, <ticket>RDIS-169</ticket>, <ticket>RDIS-222</ticket>, <ticket>RDIS-223</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">quotes / orders</td><td>All five ("price &amp; lock to partner account," "submit under partner account," "bill via THD POS," "bill via BritePay") depend on the same missing identity column before their own logic can work.</td></tr>
+          <tr><td><ticket>RDIS-470</ticket>, <ticket>RDIS-471</ticket></td><td><span class="badge badge--covered">Logic, not schema</span></td><td class="mono">—</td><td>"Resolve the servicing dealer from the lead's assignment" and "stop deriving dealer identity from the partner SAP account" are backend-helper fixes once the field above exists — no new schema of their own.</td></tr>
+          <tr><td><ticket>RDIS-482</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">installer/install_company compliance</td><td>"Gated on Ops-verified background checks" — no compliance/background-check column exists anywhere on Installer or InstallCompany.</td></tr>
+          <tr><td><ticket>RDIS-57</ticket>, <ticket>RDIS-62</ticket>, <ticket>RDIS-63</ticket>, <ticket>RDIS-44</ticket>, <ticket>RDIS-317</ticket>, <ticket>RDIS-480</ticket></td><td><span class="badge badge--covered">Engine missing, not schema</span></td><td class="mono">—</td><td>Lead-to-dealer&amp;designer assignment tickets. The eligibility schema (<span class="mono">partner_user_skills/location/assignment_config</span>) already exists in Dealers — what's missing is the assignment <em>engine</em> code (empty <span class="mono">rln_assignment.go</span>), not more tables.</td></tr>
+          <tr><td><ticket>RDIS-375</ticket>, <ticket>RDIS-376</ticket>, <ticket>RDIS-373</ticket>, <ticket>RDIS-374</ticket>, <ticket>RDIS-387</ticket>, <ticket>RDIS-386</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">—</td><td>Account Hierarchy &amp; Auth: viewing/editing RLN teaming and permission scoping on top of the already-real <span class="mono">partner_store_dealer_links</span>/<span class="mono">partner_dealer_status</span> tables — UI and permissions work, not schema.</td></tr>
+          <tr><td><ticket>RDIS-41</ticket>, <ticket>RDIS-365</ticket>, <ticket>RDIS-364</ticket>, <ticket>RDIS-362</ticket>, <ticket>RDIS-363</ticket>, <ticket>RDIS-366</ticket>, <ticket>RDIS-478</ticket>, <ticket>RDIS-320</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">—</td><td>Store-number-to-account resolution and Salesforce data-migration reconciliation — all read/write against the already-real <span class="mono">partner_dealer_store_config</span>/<span class="mono">leads.referral_store_number</span> fields; data-quality work, not new columns.</td></tr>
+          <tr><td><ticket>RDIS-475</ticket>, <ticket>RDIS-476</ticket>, <ticket>RDIS-477</ticket>, <ticket>RDIS-481</ticket></td><td><span class="badge badge--covered">Verification, not schema</span></td><td class="mono">—</td><td>"Confirm/verify X still works for RLN" tickets — regression checks against existing work-order permission and notification paths.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="gap-scheduling">
+      <span class="eyebrow">Cluster 2 of 8 &middot; 22 tickets</span>
+      <h2>Scheduling engine cutover</h2>
+      <p>Every ticket in the "Calendar Domain" project plus <ticket>RDIS-59</ticket>/<ticket>60</ticket>/<ticket>43</ticket> is executing the migration already described in the <a href="#events">Events section</a> above: from the legacy <span class="mono">scheduling.appointments</span> table to the new <span class="mono">schedules/availability/bookings</span> engine. The schema for the destination already exists — this cluster is entirely about routing writes and reads through it and then decommissioning the old table.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RLN-86</ticket></td><td><span class="badge badge--migrating">Mid-migration</span></td><td>"Calendar provider foundation: generic schema + wire Google busy-sync into GetSlots" — the schema is the RDIS-65 tables; this ticket is the wiring.</td></tr>
+          <tr><td><ticket>RLN-107</ticket></td><td><span class="badge badge--field">New field / wiring</span></td><td>"Bridge SchedulingEngineService bookings to LeadEvent" — <span class="mono">bookings.external_appointment_id</span> already exists as the bridge column; this connects it to <span class="mono">lead_events</span> on read.</td></tr>
+          <tr><td><ticket>RLN-122</ticket>, <ticket>RLN-123</ticket>, <ticket>RLN-124</ticket></td><td><span class="badge badge--migrating">Cutover</span></td><td>Route writes / move readers off / retire the legacy table — the literal decommission sequence, schema-complete already.</td></tr>
+          <tr><td><ticket>RLN-108</ticket>, <ticket>RLN-109</ticket>, <ticket>RLN-106</ticket>, <ticket>RLN-111</ticket></td><td><span class="badge badge--covered">Authorization bugs</span></td><td>Dealer-hierarchy ownership scoping on the new engine's RPCs, plus an IANA tzdata packaging bug — code fixes, not schema.</td></tr>
+          <tr><td><ticket>RLN-1</ticket>, <ticket>RLN-7</ticket>, <ticket>RLN-132</ticket>, <ticket>RLN-134</ticket>, <ticket>RLN-135</ticket>, <ticket>RLN-119</ticket>, <ticket>RLN-120</ticket>, <ticket>RLN-126</ticket>, <ticket>RLN-127</ticket>, <ticket>RLN-87</ticket>, <ticket>RDIS-59</ticket>, <ticket>RDIS-60</ticket>, <ticket>RDIS-43</ticket>, <ticket>RDIS-250</ticket>, <ticket>RDIS-251</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td>Consumer self-booking widget, iCal/Outlook feeds, availability rules, cancel-with-reason, mileage context — all UI/feature work on top of the already-real <span class="mono">event_types</span>/<span class="mono">availability</span>/<span class="mono">out_of_office</span>/<span class="mono">bookings</span> tables. <ticket>RLN-127</ticket> ("cancel with a recorded reason and outcome") may want a <span class="mono">cancellation_reason</span> column added to <span class="mono">bookings</span> — currently only a bare status enum — worth a small field add, but not a new table.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="gap-dc">
+      <span class="eyebrow">Cluster 3 of 8 &middot; 12 tickets</span>
+      <h2>Direct Connect quote bridge</h2>
+      <p><span class="mono">dealer_quote.quotes</span> already has <span class="mono">is_dc_sourced</span> and <span class="mono">dc_quote_id</span> columns, so the DC&#8596;Brite quote sync has a landing spot. This cluster (all in RLN-Delivery) is mostly building the webhook/sync pipeline on top of that, with one real field-level ask.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RLN-98</ticket>, <ticket>RLN-101</ticket>, <ticket>RLN-100</ticket>, <ticket>RLN-103</ticket>, <ticket>RLN-102</ticket>, <ticket>RLN-99</ticket>, <ticket>RLN-97</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td>The intake endpoint, the create/update logic, internal event logging, the on-screen display, and credential setup — all land on the existing <span class="mono">is_dc_sourced</span>/<span class="mono">dc_quote_id</span> columns.</td></tr>
+          <tr><td><ticket>RLN-114</ticket>, <ticket>RDIS-390</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td>"Convert DC-sourced quote to native" / "warn and disconnect DC-sourced quote lines when edited" — both are state-machine logic keyed off the existing <span class="mono">is_dc_sourced</span> flag.</td></tr>
+          <tr><td><ticket>RLN-96</ticket></td><td><span class="badge badge--field">New field</span></td><td>"Sync DC quotes into Brite Order as active quotes with DC lock-back" — a lock-back mechanism implies a new <span class="mono">dc_locked_at</span>/<span class="mono">locked_by_dc</span>-style column; the current schema has the source flag but no lock state.</td></tr>
+          <tr><td><ticket>RDIS-327</ticket>, <ticket>RDIS-115</ticket>, <ticket>RDIS-389</ticket></td><td><span class="badge badge--covered">UI / config</span></td><td>Passwordless DC launch, auto-open install-request flow, surfacing HD Service Center financing info — frontend/config, no schema.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="gap-financial">
+      <span class="eyebrow">Cluster 4 of 8 &middot; 16 tickets</span>
+      <h2>Financial ledger / Epicor posting</h2>
+      <p>This is the cleanest, most fully-open gap in the whole backlog. There is no financial-document model, no posted-flag, no cost/royalty/commission column, and no dealer-commission ledger anywhere in Brite today — confirmed directly against the Orders and Quotes schema above. Every ticket in "Epicor Kinetic Posting," "GL / AR," and "Dealer Commissions" is some facet of building this from scratch.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Table.field / new table</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RDIS-186</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">financial_document (new)</td><td>"Define ERP-neutral canonical financial-document model + swappable posting adapter" — names the gap directly.</td></tr>
+          <tr><td><ticket>RDIS-192</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">order posting/GL ledger (new)</td><td>"Posted flags, actual cost/royalty/commission, revenue recognition" — none of these exist on <span class="mono">orders</span> today.</td></tr>
+          <tr><td><ticket>RDIS-372</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">commission_payee (new)</td><td>"Model commission-payee and channel-partner vendor identity" — <span class="mono">dealer_vendor_configurations</span> is dealer-side vendor config, not a who-gets-paid concept.</td></tr>
+          <tr><td><ticket>RDIS-183</ticket>, <ticket>RDIS-185</ticket>, <ticket>RDIS-188</ticket>, <ticket>RDIS-189</ticket>, <ticket>RDIS-191</ticket>, <ticket>RDIS-190</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">posting adapter + correlation key</td><td>Discovery epic, eCDIV2 reuse spike, feed-building, and the Ready-to-Post handshake all depend on the same not-yet-built canonical posting model and an external correlation-id column that doesn't exist on <span class="mono">orders</span> yet.</td></tr>
+          <tr><td><ticket>RDIS-187</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">line_items / quote_line_items</td><td>Explicitly titled "Add order-line financial fields to the Brite order/quote model."</td></tr>
+          <tr><td><ticket>RDIS-391</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">line_items.taxes</td><td>"Carry per-line tax amount through to Epicor" — <span class="mono">line_items.taxes</span> already exists; the gap is the Epicor posting pipeline, not the column.</td></tr>
+          <tr><td><ticket>RDIS-393</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">line_items.line_discount</td><td>Same pattern — <span class="mono">line_discount</span>/<span class="mono">net_line_value</span> already exist on <span class="mono">line_items</span>.</td></tr>
+          <tr><td><ticket>RDIS-193</ticket>, <ticket>RDIS-324</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">dealer_commission_ledger (new)</td><td>"Calculate &amp; pay RLN dealer commissions" and "per-order remittance statement" — <span class="mono">dealer_sales_metrics</span> is read-only analytics, not a payable ledger; nothing tracks an owed-or-paid commission amount per order today.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout callout--warn full">
+        <p><strong>Watch for a near-miss table name.</strong> <span class="mono">services/sales</span> gained a table called <span class="mono">pinnacle_escapes_rln_commissions</span> the same day this report was written (migration dated 2026&#8209;08&#8209;05) — easy to mistake, from a table listing alone, for the dealer-commission ledger <ticket>RDIS-193</ticket>/<ticket>RDIS-324</ticket> need. It isn't: it's a monthly Pinnacle&nbsp;Escapes rewards-trip aggregate keyed by buying-group account number, synced from BigQuery, with no per-order line, payout-batch id, or payable amount. <strong>No dealer-payable, per-order commission ledger exists anywhere</strong> — <span class="mono">dealer_sales_metrics</span> is read-only analytics, and this new table is a different concept entirely.</p>
+      </div>
+      <div class="callout full"><p>Worth flagging as a design opportunity rather than a per-ticket gap: at least three unrelated tickets (<ticket>RDIS-189</ticket>'s Epicor correlation key, <ticket>RDIS-302</ticket>'s Salesforce "connection key," and the already-shipped <span class="mono">dc_quote_id</span>) are each proposing their own one-off external-system correlation column. A single generic <span class="mono">external_correlation_id</span> + <span class="mono">external_system</span> pair on <span class="mono">orders</span>/<span class="mono">quotes</span> would serve all three instead of accumulating a new column per integration.</p></div>
+    </section>
+
+    <section id="gap-docs">
+      <span class="eyebrow">Cluster 5 of 8 &middot; 23 tickets</span>
+      <h2>Documents &amp; signatures</h2>
+      <p>The base schema map above under-reports this domain by a whole service: <strong><span class="mono">services/doc-composer</span> is real and substantial</strong>, not the "empty skeleton" some open ticket text still claims. It already has <span class="mono">document_templates</span>, <span class="mono">document_template_versions</span>, <span class="mono">document_template_events</span>, and <span class="mono">document_sample_data</span> (the Carbone template registry, shipped under <ticket>RLN-13</ticket>) plus <span class="mono">documenso_envelopes</span> (Documenso e-signature orchestration, keyed to <span class="mono">lead_id</span>). That closes several tickets outright. What's still genuinely missing is anything that <em>evaluates a rule</em> — the template registry stores channel/state/product metadata descriptively, but nothing enforces which template a given channel+state+product combination requires, and <span class="mono">work_order_files</span> (install-work-order) has no document-type column at all, so a completion document can't be distinguished from any other attachment.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <caption>Verified 2026-08-05 against services/doc-composer's live migrations and Linear ticket text/PR state, not the base schema reference alone.</caption>
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Table.field / new table</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RDIS-433</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">channel_completion_document_requirements</td><td>No channel-to-required-document configuration exists anywhere, and <span class="mono">work_order_files</span> has no document-type column to satisfy "each file row carries its document type" either.</td></tr>
+          <tr><td><ticket>RDIS-159</ticket>, <ticket>RDIS-466</ticket></td><td><span class="badge badge--covered">Depends on RDIS-433</span></td><td class="mono">—</td><td>Both name RDIS-433's typed <span class="mono">work_order_files</span> model as a hard prerequisite in their own acceptance criteria.</td></tr>
+          <tr><td><ticket>RDIS-342</ticket>, <ticket>RLN-62</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">iconx_document_uploads</td><td>Zero hits anywhere in the repo for "iconx" or "key_rec" — no table tracks per-document THD upload status or the 3-day auto-gate these need. The two tickets look like the same mechanism scoped twice (Key Rec packet vs. general completion form).</td></tr>
+          <tr><td><ticket>RDIS-321</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">document_template_rules</td><td>The template registry's channel/state/product columns are informational only, per the migration's own comment — nothing evaluates them as a selector today.</td></tr>
+          <tr><td><ticket>RLN-136</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">document_template_field_mappings</td><td>The ticket's own delivery plan stages this exact table in a migration-only PR — confirmed absent today.</td></tr>
+          <tr><td><ticket>RDIS-367</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">documenso_envelopes.source</td><td>Needs an origin discriminator (Brite-lead vs. Salesforce-triggered) that doesn't exist on the envelope table yet.</td></tr>
+          <tr><td><ticket>RDIS-132</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">documenso_envelopes.recipient_phone</td><td>Email-remote signing is already covered by <span class="mono">recipient_email</span>/<span class="mono">signing_url</span>; SMS delivery has no phone or channel column.</td></tr>
+          <tr><td><ticket>RDIS-312</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">document_execution_log</td><td>Needs a structured per-attempt log across both renderers (status, correlation id, raw response) — the closest existing field, <span class="mono">documenso_envelopes.processing_error</span>, is envelope-scoped, not a general attempt log.</td></tr>
+          <tr><td><ticket>RDIS-160</ticket></td><td><span class="badge badge--covered">Out of scope</span></td><td class="mono">—</td><td>Confirmed with the business owner: installer rate sheets will not be maintained in Brite at all. No schema work applies here regardless of what the ticket text says.</td></tr>
+          <tr><td><ticket>RDIS-467</ticket>, <ticket>RDIS-142</ticket>, <ticket>RLN-13</ticket>, <ticket>RLN-14</ticket>, <ticket>RLN-116</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">document_templates, documenso_envelopes</td><td>These are the tickets that <em>built</em> doc-composer's schema (RLN-13/14) or already reuse it as-is (a Sign Documents action, the tool-agnostic generation epic — demoed working 2026-07-09 — and opening the signer in a new tab).</td></tr>
+          <tr><td><ticket>RDIS-314</ticket></td><td><span class="badge badge--covered">Superseded</span></td><td class="mono">—</td><td>Scopes the identical Carbone template-management UI a second time under a different app/permission model than what actually shipped (RLN-13/14) — likely closeable as superseded.</td></tr>
+          <tr><td><ticket>RDIS-481</ticket>, <ticket>RDIS-475</ticket>, <ticket>RDIS-477</ticket>, <ticket>RDIS-360</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">work_orders.dealer_id</td><td>All four are verification/logic tickets against the already-real, not-null <span class="mono">dealer_id</span> column — none needs new schema by its own description.</td></tr>
+          <tr><td><ticket>RDIS-351</ticket>, <ticket>RDIS-323</ticket></td><td><span class="badge badge--ok">Not a schema question</span></td><td class="mono">—</td><td>Key Vault/Terraform secrets provisioning and email-sender DNS authentication — infrastructure, not database.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="gap-quoting">
+      <span class="eyebrow">Cluster 6 of 8 &middot; 24 tickets</span>
+      <h2>Quote authoring &amp; custom products</h2>
+      <p><span class="mono">order-erp-catalog</span> has zero Postgres tables (it's a live SAP passthrough), so a genuinely custom, non-catalog product line has nowhere authoritative to persist today — confirmed by direct grep. <strong>Corrected from an earlier pass:</strong> the actual design is one line-level table (<span class="mono">custom_product_line</span>), not a separate catalog plus a line table — each custom product is one-off and self-describing (SKU, description, operating system, mount, dimensions, location, RLN cost, customer price, line status, delivery status, tracking number), tied to both the quote and, once submitted, the order. Underneath most of the "partner account" tickets here sits the exact same missing identity field from <a href="#gap-identity">Cluster&nbsp;1</a> — this pass re-confirmed it from the Quotes side rather than assuming it.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <caption>Verified 2026-08-05 including direct grep for Centah/rate-sheet/tax-engine code and a three-way check of RLN-71's actual merge state.</caption>
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Table.field / new table</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RDIS-155</ticket>, <ticket>RDIS-377</ticket>, <ticket>RDIS-392</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">custom_product_line</td><td><strong>Corrected:</strong> per direct confirmation from the business owner, this is one self-describing line-level table (sku, description, operating system, mount, width, height, location, RLN cost, customer price, line status, delivery status, tracking number), not a separate catalog-plus-line pair — a genuinely custom product isn't reused across quotes, so a reusable catalog entry doesn't apply.</td></tr>
+          <tr><td><ticket>RDIS-378</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">(pending discovery)</td><td>Zero real Carole-vendor integration exists anywhere — if Brite gets direct API/DB access, this needs its own order/tracking mirror with no current analog in Quotes or Orders.</td></tr>
+          <tr><td><ticket>RDIS-339</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">quote-side partner SKU map + outbound audit</td><td>Needs a per-product THD-SKU map plus a call-audit trail; the comparable tables (<span class="mono">partner_config</span>, <span class="mono">integration_log</span>) exist only in Leads, not in Quotes.</td></tr>
+          <tr><td><ticket>RDIS-340</ticket>, <ticket>RDIS-341</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">Centah client + state tracking</td><td>Confirmed zero real Centah code anywhere — "centah" appears only as placeholder enum values. Costco's Centah poll path is explicitly listed as future/unbuilt scope in the repo's own OpenSpec design doc.</td></tr>
+          <tr><td><ticket>RDIS-154</ticket></td><td><span class="badge badge--field">New field (partial)</span></td><td class="mono">dealer_quote.quotes.sales_brand</td><td><strong>Corrected:</strong> <span class="mono">sidemark</span> and <span class="mono">po_reference</span> already exist on <span class="mono">quotes</span> — an earlier pass here wrongly called them new. Only <span class="mono">sales_brand</span> is a genuine gap; a channel-level (not quote-level) <span class="mono">kirsch</span> boolean already exists on <span class="mono">partner_channel_mapping</span> in Leads.</td></tr>
+          <tr><td><ticket>RDIS-150</ticket>, <ticket>RDIS-164</ticket>, <ticket>RDIS-167</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">quotes.partner_account_id, orders.partner_account_id</td><td>The root gap, re-confirmed from this side: <span class="mono">leads.leads</span> already carries partner identity, but it was never propagated to Quote or Order. RDIS-167 also substantially duplicates the actively-tracked Service Detour Flows reselection tickets — its own sibling covering the identical flow was already cancelled in favor of that breakdown; recommend descoping reselection out of it.</td></tr>
+          <tr><td><ticket>RDIS-151</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">quotes.pricing_tier</td><td>No tier enum exists; could layer onto the existing <span class="mono">quote_custom_charges_and_discounts</span> table instead of a dedicated column, but nothing records Max/Mid/Min today. Also blocked on the partner-account field above.</td></tr>
+          <tr><td><ticket>RDIS-152</ticket>, <ticket>RDIS-468</ticket>, <ticket>RDIS-166</ticket>, <ticket>RDIS-380</ticket>, <ticket>RDIS-223</ticket>, <ticket>RDIS-381</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">quote_promotions, payment_links, manual_payments</td><td>Promotions, freight-engine config (BO-318, done), Ready-to-Order gating, and BritePay billing for non-THD channels all land on already-real tables — service-logic/reuse work, not new schema. RDIS-223 explicitly self-describes as reusing Payments &amp; Credits (BL-1462) and Cash Flow (BL-1463).</td></tr>
+          <tr><td><ticket>RDIS-169</ticket>, <ticket>RDIS-222</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">dealer commission ledger; THD POS invoice record</td><td>Commission crediting needs the same ledger discussed in <a href="#gap-financial">Financial ledger</a>; THD POS billing needs an invoice/billing-model table — a direct check of <span class="mono">services/pay</span>'s real schema (payment_links, manual_payments, dealer_stripe_accounts, surcharge_state_rules) confirms neither exists yet.</td></tr>
+          <tr><td><ticket>RDIS-394</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">orders.held / payment_checked_at</td><td>No column exists for "held pending payment" or a last-check timestamp for the auto-release poll this ticket needs.</td></tr>
+          <tr><td><ticket>RDIS-153</ticket>, <ticket>RLN-71</ticket></td><td><span class="badge badge--migrating">Built, not merged</span></td><td class="mono">order-quote-nexus/taxestimate</td><td>Confirmed by three independent checks (the directory is absent from this worktree, <span class="mono">origin/main</span> has zero commits on that path, and the corresponding OpenSpec change appears in neither the active nor archived list) that the full tax engine exists only on an unmerged branch — despite Linear showing <ticket>RLN-71</ticket> as "In Review." Don't trust ticket status alone for merge state.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="max-width:none; font-size:0.85rem; color:var(--ink-soft);"><ticket>RDIS-193</ticket> and <ticket>RDIS-324</ticket> (dealer commissions) were reviewed as part of this pass too — see <a href="#gap-financial">Financial ledger</a>, where the finding is sharper than a simple gap.</p>
+    </section>
+
+    <section id="gap-cs">
+      <span class="eyebrow">Cluster 7 of 8 &middot; 65 tickets</span>
+      <h2>Customer Service &amp; service detour flows</h2>
+      <p>This is the "Customer Service," "Service Detour Flows," "Compensation &amp; Refunds," "Order Tracking," "Installer Payouts," and "Audit Response" projects — the RLN post-sale support backlog built directly from CDI's own support-process documentation. Most of the channel/ticketing mechanics (email SLAs, Zendesk views, agent scripts) are Zendesk-side configuration with no Brite schema implication. The Brite-schema-relevant gaps cluster tightly:</p>
+      <div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Table.field / new table</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RDIS-450</ticket></td><td><span class="badge badge--field">New field, not a table</span></td><td class="mono">orders.held</td><td><strong>Corrected:</strong> per the business design, backorder state is a status on the existing order (a <span class="mono">held</span>-style flag), not its own table — no dedicated backorder record is planned.</td></tr>
+          <tr><td><ticket>RDIS-415</ticket></td><td><span class="badge badge--covered">Covered by the custom-product design</span></td><td class="mono">—</td><td><strong>Corrected:</strong> Salesforce's vendor-confirmation object gets superseded once custom products (with their own delivery status and tracking number) live directly on the order — no separate confirmation table is planned.</td></tr>
+          <tr><td><ticket>RDIS-441</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">order_chat / a new parts-order-ref column</td><td>"Post parts order references and status events to the support ticket automatically" needs a stable parts-order-reference field to post from.</td></tr>
+          <tr><td><ticket>RDIS-403</ticket>, <ticket>RDIS-405</ticket>, <ticket>RDIS-408</ticket>, <ticket>RDIS-419</ticket>, <ticket>RDIS-424</ticket>, <ticket>RDIS-402</ticket>, <ticket>RDIS-167</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">reselection_requests (new)</td><td>The entire reselection workflow (POA e-signature offer, entry guardrails, staged tracking, per-line service intake, change-order mechanics) — the word "reselect" appears nowhere in any Brite service; this is a full new sub-domain.</td></tr>
+          <tr><td><ticket>RDIS-448</ticket>, <ticket>RDIS-452</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">warranty_status, quality_responsibilities</td><td><strong>Corrected:</strong> warranty determination is already representable through the existing quality/service-charge tables, not a missing column. No dedicated <span class="mono">warranty_covered</span> field is needed on any line-item table.</td></tr>
+          <tr><td><ticket>RDIS-426</ticket>, <ticket>RDIS-414</ticket>, <ticket>RDIS-420</ticket>, <ticket>RDIS-404</ticket></td><td><span class="badge badge--table">New table</span></td><td class="mono">compensation_cases (new)</td><td>Money-back type/processor derivation, compensation-matrix enforcement, tokenized card recapture — no compensation/refund-case entity exists; Brite Pay has payment records but nothing case-shaped.</td></tr>
+          <tr><td><ticket>RDIS-429</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">support.case_orders.order_type</td><td>"Link support cases to work orders" — <span class="mono">case_orders</span> already exists but is a loose, untyped string ID populated from two different Zendesk fields with no column saying whether it's a product order or a work order. Needs a discriminator field, not a new table.</td></tr>
+          <tr><td><ticket>RDIS-445</ticket></td><td><span class="badge badge--ok">Config, not schema</span></td><td class="mono">surcharge_definition</td><td>"Configure linear-foot and square-foot surcharges" — the <span class="mono">LINEAR_FOOT</span>/<span class="mono">SQ_FOOT</span> UOM and rounding rules already exist on <span class="mono">surcharge_definition</span>; this is configuration, not new schema.</td></tr>
+          <tr><td><ticket>RDIS-158</ticket>, <ticket>RDIS-172</ticket>, <ticket>RDIS-173</ticket>, <ticket>RDIS-413</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">service_outcome, dealer_charge_type, installer_pay_type</td><td>The installer-pay rule tables (service_outcome/dealer_charge_type/installer_pay_type/service_charge_outcome_rules) already exist in Work Orders — this is rule configuration and reuse of Brite Install's own payment flow, not new schema.</td></tr>
+          <tr><td><ticket>RDIS-388</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">work_order_line_sku.locked_at</td><td>"Lock quoted values at RLN Submit for Payment" needs an explicit lock timestamp/snapshot — none exists today.</td></tr>
+          <tr><td><ticket>RDIS-409</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">work_order_relations</td><td>"Carry conditional SKUs onto every return-trip service order" — the <span class="mono">work_order_relations</span> self-graph (ROOT_WORK_ORDER/SHARED_PRODUCT_ORDER) already models exactly this lineage.</td></tr>
+          <tr><td><ticket>RDIS-345</ticket>, <ticket>RDIS-368</ticket></td><td><span class="badge badge--migrating">Built, not merged</span></td><td class="mono">order-quote-nexus/taxestimate</td><td>Confirmed by three independent checks (see <a href="#gap-quoting">Quote Authoring</a> for the full detail) that the tax matrix/rate engine exists only on an unmerged branch, despite Linear showing the related <ticket>RLN-71</ticket> as "In Review." Until it merges, these two and <ticket>RDIS-153</ticket> describe the same open gap, not independent follow-ups.</td></tr>
+          <tr><td><ticket>RDIS-346</ticket>, <ticket>RDIS-347</ticket>, <ticket>RDIS-348</ticket>, <ticket>RDIS-349</ticket>, <ticket>RDIS-350</ticket></td><td><span class="badge badge--covered">Depends on the above</span></td><td class="mono">—</td><td>The install-service-category summarizer (SKU-to-category mapping, taxability rules, making it available to other systems, internal-view rendering) consumes that same unmerged engine's output — a sequencing risk, not an independent schema question.</td></tr>
+          <tr><td><ticket>RDIS-460</ticket></td><td><span class="badge badge--field">New field</span></td><td class="mono">leads.total_installation_cost</td><td>"Persist total installation cost on the Project record" — no such column exists on <span class="mono">leads</span> today.</td></tr>
+          <tr><td>Remaining ~40 tickets<br /><span style="font-size:0.78rem">(channel registry, DNIS routing, call-window enforcement, agent scripts, Zendesk KB/SLA/views, escalation timing)</span></td><td><span class="badge badge--covered">Zendesk / process, not Brite schema</span></td><td class="mono">—</td><td>These configure the support tool (Zendesk) and internal process, not the Brite database — no schema verdict applies.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="gap-misc">
+      <span class="eyebrow">Cluster 8 of 8 &middot; 57 tickets</span>
+      <h2>Everything else</h2>
+      <p>The remaining active tickets are almost entirely Salesforce-decommission writeback plumbing, data-migration reconciliation, and umbrella/planning tickets — real work, but not asks for new Brite tables.</p>
+      <div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>Ticket(s)</th><th>Verdict</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><ticket>RDIS-290</ticket>&ndash;<ticket>RDIS-298</ticket> (Salesforce writeback pipeline)</td><td><span class="badge badge--ok">Schema exists</span></td><td>REST client, writeback worker, status-mapping config, Datadog instrumentation, SF-side OAuth/security — all consume existing <span class="mono">leads.status_id</span> and the existing <span class="mono">kafka_outbox</span>; no new Brite table.</td></tr>
+          <tr><td><ticket>RDIS-114</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td class="mono">leads_audits</td><td><strong>Corrected:</strong> a real activity log already exists (<span class="mono">leads_audits</span> in the shared <span class="mono">services/audit</span>) tracking stage/substage transitions, event names, and who/when. Likely remaining gap is narrower — specific new RLN event types may need to be explicitly logged, not a schema change.</td></tr>
+          <tr><td><ticket>RDIS-221</ticket>, <ticket>RDIS-302</ticket></td><td><span class="badge badge--ok">Schema exists</span></td><td>Writing DC quote/order data and milestones back into Salesforce — reads existing fields; the "connection key" idea overlaps the correlation-id opportunity noted under Financial ledger.</td></tr>
+          <tr><td><ticket>RDIS-224</ticket>, <ticket>RDIS-334</ticket></td><td><span class="badge badge--covered">Likely outside Brite's DB</span></td><td>Marketing Cloud journey replacement — nurture-journey state most likely belongs in Iterable, not a new Brite table; low confidence either way without checking the Iterable integration directly.</td></tr>
+          <tr><td><ticket>RDIS-478</ticket>, <ticket>RDIS-362</ticket>, <ticket>RDIS-363</ticket>, <ticket>RDIS-366</ticket></td><td><span class="badge badge--covered">Data quality, not schema</span></td><td>Archival backup and account-data-gap reconciliation against existing <span class="mono">dealers</span>/<span class="mono">store_audit</span> tables.</td></tr>
+          <tr><td><ticket>RDIS-226</ticket>, <ticket>RDIS-225</ticket>, <ticket>RDIS-319</ticket></td><td><span class="badge badge--ok">Schema exists / umbrella</span></td><td>Dealer performance tracking (<span class="mono">dealer_sales_metrics</span> already exists), onboarding, and a Costco-Canada business-config confirmation — too high-level for a specific schema verdict, or already partially covered.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="methodology">
+      <span class="eyebrow">How this was built</span>
+      <h2>Methodology &amp; confidence</h2>
+      <p>Seven parallel research passes mapped each domain directly from the database's own change history (every table and column ever added, renamed, or dropped) and cross-checked that against the application's own internal definitions and code. Three of those seven initial passes turned out to be working from an out-of-date copy of the codebase that pre-dated roughly a month of consolidation work — this was caught by directly checking specific claims (does this table actually exist, does this service still exist) against the current version, not assumed. The corrected facts driving the highest-confidence findings above — the RLN identity fields on <span class="mono">leads</span>, the <span class="mono">partner_channel_mapping</span> table, the new Scheduling Engine tables, the <span class="mono">order-dealer-quote</span>&rarr;<span class="mono">order-status</span> consolidation, and the <span class="mono">install-work-order-assignment</span> consolidation — were each verified by reading the actual migration file, not inferred from a summary.</p>
+      <p>248 active tickets (Backlog/Unstarted/Started/Triage, excluding Done/Cancelled/Duplicate) were pulled from the RLN-Discovery and RLN-Delivery Linear teams — there is no standalone "RDIS" team; RDIS is simply RLN-Discovery's issue-key prefix, unchanged since before the team was renamed. Every ticket named in a table above was checked against its own full Linear description and the live repository, not just its title — including three findings that came directly from that per-ticket pass rather than the initial schema sweep: <span class="mono">services/doc-composer</span>'s real template/e-signature schema (missed entirely by the original domain mapping), confirmation that the RLN tax engine is still unmerged despite showing "In Review" in Linear, and the same-day <span class="mono">pinnacle_escapes_rln_commissions</span> table that resembles but isn't the missing dealer-commission ledger. Tickets referenced only in the "everything else" cluster or in a multi-ticket summary row were reviewed at the title and project level rather than individually re-verified against the schema.</p>
+    </section>
+
+  </main>
+</div>
+
+<div class="lightbox" id="diagramLightbox" hidden>
+  <div class="lightbox-toolbar">
+    <button type="button" data-action="zoom-out" aria-label="Zoom out">&minus;</button>
+    <span class="lightbox-zoom-label" id="lightboxZoomLabel">100%</span>
+    <button type="button" data-action="zoom-in" aria-label="Zoom in">&plus;</button>
+    <button type="button" data-action="reset">Reset</button>
+    <span class="lightbox-legend"><span class="swatch swatch--rln"></span>RLN table<span class="swatch swatch--new" style="margin-left:14px"></span>Proposed / not built yet</span>
+    <span class="spacer"></span>
+    <span class="lightbox-hint">scroll/pinch to zoom &middot; drag to pan &middot; click a line to trace it, or a table to select every line connected to it &middot; click again or click empty space to clear &middot; double-click to re-center</span>
+    <span class="spacer"></span>
+    <button type="button" data-action="close" aria-label="Close">&times;</button>
+  </div>
+  <div class="lightbox-viewport" id="lightboxViewport">
+    <div class="lightbox-stage" id="lightboxStage"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.nav a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var target = document.querySelector(a.getAttribute('href'));
+      if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+
+  var lightbox = document.getElementById('diagramLightbox');
+  var viewport = document.getElementById('lightboxViewport');
+  var stage = document.getElementById('lightboxStage');
+  var zoomLabel = document.getElementById('lightboxZoomLabel');
+  var scale = 1, tx = 0, ty = 0;
+  var dragging = false, lastX = 0, lastY = 0, movedDuringDrag = false;
+  var pinch = null;
+  var highlightedEdges = [];
+  var selectedEntity = null;
+
+  function clearSelection() {
+    highlightedEdges.forEach(function (e) { e.classList.remove('edge-highlighted'); });
+    highlightedEdges = [];
+    if (selectedEntity) { selectedEntity.classList.remove('entity-selected'); selectedEntity = null; }
+  }
+
+  function highlightEdgeSet(edges, entityG) {
+    clearSelection();
+    edges.forEach(function (e) { e.classList.add('edge-highlighted'); });
+    highlightedEdges = edges;
+    if (entityG) { entityG.classList.add('entity-selected'); selectedEntity = entityG; }
+  }
+
+  function toggleSingleEdge(edge) {
+    if (highlightedEdges.length === 1 && highlightedEdges[0] === edge && !selectedEntity) {
+      clearSelection();
+      return;
+    }
+    highlightEdgeSet([edge], null);
+  }
+
+  function toggleEntity(entityG, edges) {
+    if (selectedEntity === entityG) { clearSelection(); return; }
+    highlightEdgeSet(edges, entityG);
+  }
+
+  function allEdges(svg) {
+    var edges = Array.prototype.slice.call(svg.querySelectorAll('path[marker-start], path[marker-end]'));
+    if (!edges.length) edges = Array.prototype.slice.call(svg.querySelectorAll('[class*="relationship" i]'));
+    return edges;
+  }
+
+  function wireEdgeHighlighting(svg) {
+    allEdges(svg).forEach(function (edge) {
+      edge.classList.add('diagram-edge');
+      edge.style.pointerEvents = 'stroke';
+      edge.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (movedDuringDrag) return;
+        toggleSingleEdge(edge);
+      });
+    });
+  }
+
+  // Edge ids encode the entities they connect, e.g. "...-id_entity-dealers-0_entity-dealer_stores-1_3"
+  // or "...-entity-dealers-0-cyclic-special-1" for a self-referencing relationship (one name only).
+  function entityNamesInEdgeId(id) {
+    var names = [], re = /entity-([A-Za-z_][A-Za-z0-9_]*)-\d+/g, m;
+    while ((m = re.exec(id || '')) !== null) names.push(m[1]);
+    return names;
+  }
+
+  function wireEntityHighlighting(svg) {
+    entityNodes(svg).forEach(function (g) {
+      var name = entityNameOf(g);
+      if (!name) return;
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (movedDuringDrag) return;
+        var touching = allEdges(svg).filter(function (edge) {
+          return entityNamesInEdgeId(edge.id).indexOf(name) !== -1;
+        });
+        toggleEntity(g, touching);
+      });
+    });
+  }
+
+  // Mermaid (this CDN build) renders erDiagram labels as HTML inside
+  // <foreignObject>, not as native SVG <text>, and each entity is a single
+  // flat <g id=".. .-entity-<Name>-<n>"> containing <path>-based row/border
+  // fills (not <rect>) as siblings of the label groups, not their parents.
+  // Both helpers below key off that real structure instead of guessing.
+  function entityNodes(svg) {
+    return Array.prototype.slice.call(svg.querySelectorAll('g[id*="-entity-"]'));
+  }
+
+  function entityNameOf(g) {
+    var m = /-entity-(.+)-\d+$/.exec(g.id || '');
+    return m ? m[1] : null;
+  }
+
+  var RLN_ENTITY_NAMES = [
+    'partner_dealer_store_config', 'partner_store_dealer_links', 'partner_dealer_status',
+    'partner_user_skills', 'partner_user_location', 'partner_user_assignment_config',
+    'partner_store_user_links', 'partner_channel_mapping', 'partner_config',
+    'integration_log', 'partner_idempotency_keys', 'partner_channel_profile'
+  ];
+
+  function highlightRlnTables(svg) {
+    entityNodes(svg).forEach(function (g) {
+      if (RLN_ENTITY_NAMES.indexOf(entityNameOf(g)) !== -1) g.classList.add('rln-entity');
+    });
+  }
+
+  function highlightNewItems(svg) {
+    // An entity counts as "new" if any of its rendered attribute text
+    // contains the NEW marker used throughout this page's copy.
+    entityNodes(svg).forEach(function (g) {
+      var hasNew = Array.prototype.slice.call(g.querySelectorAll('span, p')).some(function (el) {
+        return el.textContent && el.textContent.indexOf('NEW') !== -1;
+      });
+      if (hasNew) g.classList.add('new-item-entity');
+    });
+  }
+
+  function applyTransform() {
+    stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function clampScale(s) { return Math.min(Math.max(s, 0.08), 1000); }
+
+  function zoomAt(cx, cy, factor) {
+    var next = clampScale(scale * factor);
+    tx = cx - (cx - tx) * (next / scale);
+    ty = cy - (cy - ty) * (next / scale);
+    scale = next;
+    applyTransform();
+  }
+
+  function fitToViewport() {
+    var svg = stage.querySelector('svg');
+    if (!svg) return;
+    stage.style.transform = 'translate(0px,0px) scale(1)';
+    var box = svg.getBoundingClientRect();
+    var naturalW = box.width || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width) || 800;
+    var naturalH = box.height || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.height) || 600;
+    var vw = viewport.clientWidth, vh = viewport.clientHeight;
+    scale = clampScale(Math.min(vw / naturalW, vh / naturalH) * 0.94);
+    tx = (vw - naturalW * scale) / 2;
+    ty = (vh - naturalH * scale) / 2;
+    applyTransform();
+  }
+
+  function openLightbox(svgEl) {
+    stage.innerHTML = '';
+    highlightedEdges = [];
+    selectedEntity = null;
+    var clone = svgEl.cloneNode(true);
+    stage.appendChild(clone);
+    wireEdgeHighlighting(clone);
+    wireEntityHighlighting(clone);
+    highlightNewItems(clone);
+    highlightRlnTables(clone);
+    lightbox.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(fitToViewport);
+  }
+
+  function closeLightbox() {
+    lightbox.hidden = true;
+    document.body.style.overflow = '';
+    stage.innerHTML = '';
+    highlightedEdges = [];
+    selectedEntity = null;
+  }
+
+  document.querySelectorAll('.diagram-wrap').forEach(function (wrap) {
+    wrap.addEventListener('click', function () {
+      var svg = wrap.querySelector('svg');
+      if (svg) openLightbox(svg);
+    });
+  });
+
+  lightbox.querySelector('[data-action="zoom-in"]').addEventListener('click', function () {
+    zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1.3);
+  });
+  lightbox.querySelector('[data-action="zoom-out"]').addEventListener('click', function () {
+    zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1 / 1.3);
+  });
+  lightbox.querySelector('[data-action="reset"]').addEventListener('click', fitToViewport);
+  lightbox.querySelector('[data-action="close"]').addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', function (e) { if (e.target === lightbox) closeLightbox(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
+  });
+
+  viewport.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = viewport.getBoundingClientRect();
+    zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+
+  viewport.addEventListener('dblclick', fitToViewport);
+  viewport.addEventListener('click', function () {
+    if (movedDuringDrag) { movedDuringDrag = false; return; }
+    clearSelection();
+  });
+
+  viewport.addEventListener('mousedown', function (e) {
+    dragging = true; movedDuringDrag = false;
+    lastX = e.clientX; lastY = e.clientY;
+    viewport.classList.add('dragging');
+  });
+  window.addEventListener('mousemove', function (e) {
+    if (!dragging) return;
+    tx += e.clientX - lastX; ty += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    movedDuringDrag = true;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', function () {
+    dragging = false;
+    viewport.classList.remove('dragging');
+  });
+
+  function touchDist(touches) {
+    var dx = touches[0].clientX - touches[1].clientX;
+    var dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  viewport.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 1) {
+      dragging = true; movedDuringDrag = false;
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+      dragging = false;
+      pinch = { dist: touchDist(e.touches), scale: scale };
+    }
+  }, { passive: true });
+  viewport.addEventListener('touchmove', function (e) {
+    if (e.touches.length === 1 && dragging) {
+      tx += e.touches[0].clientX - lastX; ty += e.touches[0].clientY - lastY;
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+      movedDuringDrag = true;
+      applyTransform();
+    } else if (e.touches.length === 2 && pinch) {
+      scale = clampScale(pinch.scale * (touchDist(e.touches) / pinch.dist));
+      applyTransform();
+    }
+  }, { passive: true });
+  viewport.addEventListener('touchend', function (e) {
+    if (e.touches.length < 2) pinch = null;
+    if (e.touches.length === 0) dragging = false;
+  }, { passive: true });
+})();
+</script>
+
+<script>
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+  mermaid.run();
+</script>
+</body>
+</html>
